@@ -72,7 +72,7 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 pub struct MeasurementName(String);
 
 impl MeasurementName {
-    const SPECIAL_CHARACTERS: [char; 3] = [' ', '=', ','];
+    const SPECIAL_CHARACTERS: [char; 2] = [' ', ','];
     const ESCAPE_CHARACTER: char = '\\';
 
     #[cfg(test)]
@@ -158,13 +158,14 @@ mod tests {
 
     #[rstest::rstest]
     #[case::no_special_characters(r#"amogus"#, MeasurementName::unchecked("amogus"))]
+    #[case::unescaped_equals(r#"1+1=10"#, MeasurementName::unchecked(r#"1+1=10"#))]
+    #[case::escaped_equals(r#"a\=b"#, MeasurementName::unchecked(r#"a\=b"#))]
     #[case::unescaped_quote(r#"stupid"quote"#, MeasurementName::unchecked(r#"stupid"quote"#))]
     #[case::escaped_space(r#"hello\ man"#, MeasurementName::unchecked("hello man"))]
     #[case::escaped_comma(
         r#"milk\,bread\,butter"#,
         MeasurementName::unchecked("milk,bread,butter")
     )]
-    #[case::escaped_equals(r#"a\=b"#, MeasurementName::unchecked("a=b"))]
     #[case::slashes_1_1(r#"a\a"#, MeasurementName::unchecked(r#"a\a"#))]
     #[case::slashes_2_1(r#"a\\a"#, MeasurementName::unchecked(r#"a\a"#))]
     #[case::slashes_3_2(r#"a\\\a"#, MeasurementName::unchecked(r#"a\\a"#))]
@@ -173,7 +174,7 @@ mod tests {
     #[case::slashes_6_3(r#"a\\\\\\a"#, MeasurementName::unchecked(r#"a\\\a"#))]
     #[case::double_trailing_slash(r#"haha\\"#, MeasurementName::unchecked(r#"haha\"#))]
     #[case::everything(
-        r#"day\ when\ f(x\,\ y)\ \=\ 10"#,
+        r#"day\ when\ f(x\,\ y)\ =\ 10"#,
         MeasurementName::unchecked("day when f(x, y) = 10")
     )]
     #[case::unicode(r#"💀\ dead\ man\ 💀"#, MeasurementName::unchecked("💀 dead man 💀"))]
@@ -187,7 +188,6 @@ mod tests {
     #[case::empty("")]
     #[case::unescaped_space(r#"hello kitty"#)]
     #[case::unescaped_comma(r#"you,me,together..."#)]
-    #[case::unescaped_equals(r#"1+1=10"#)]
     #[case::trailing_slash(r#"we\ are\ number\ one\"#)]
     #[case::starts_with_underscore(r#"_reserved"#)]
     fn parsing_fails(#[case] escaped_input: &str) {
