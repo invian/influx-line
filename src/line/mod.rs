@@ -9,13 +9,15 @@ use crate::types::InfluxValue;
 /// Described [here](https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/).
 #[derive(Debug, Clone)]
 pub struct InfluxLine {
+    /// Required measurement name.
     pub measurement: String,
     /// The original name `Tag Set` is not adapted for simplicity.
     pub tags: HashMap<String, String>,
     /// The original name `Field Set` is not adapted for simplicity.
     pub fields: HashMap<String, InfluxValue>,
-    /// [`DateTime`] sounds more readable for a timestamp
+    /// [`DateTime`] sounds more readable for a timestamp.
     pub timestamp: Option<DateTime<Utc>>,
+    /// Fancy constructors are preferable for safery.
     _phantom: PhantomData<()>,
 }
 
@@ -66,7 +68,7 @@ impl InfluxLine {
     /// let line = InfluxLine::new("human", "age", 15);
     ///
     /// assert!(line.tags.is_empty());
-    /// assert_eq!(None, line.tags.get("there are no tags yet, buddy"));
+    /// assert_eq!(line.tags.get("there are no tags yet, buddy"), None);
     /// ```
     ///
     /// ## Adding and overriding tags
@@ -79,9 +81,9 @@ impl InfluxLine {
     ///     .with_tag("location", "siberia")
     ///     .with_tag("club", "sports");
     ///
-    /// assert_eq!("siberia", line.tags.get("location").unwrap());
-    /// assert_eq!("sports", line.tags.get("club").unwrap());
-    /// assert_eq!(None, line.tags.get("not added yet lol"));
+    /// assert_eq!(line.tags.get("location").unwrap(), "siberia");
+    /// assert_eq!(line.tags.get("club").unwrap(), "sports");
+    /// assert_eq!(line.tags.get("not added yet lol"), None);
     /// ```
     pub fn with_tag<S1, S2>(mut self, tag: S1, value: S2) -> Self
     where
@@ -101,9 +103,9 @@ impl InfluxLine {
     ///
     /// let line = InfluxLine::new("human", "age", 15);
     ///
-    /// assert_eq!(1, line.fields.len());
-    /// assert_eq!(None, line.fields.get("height"));
-    /// assert_eq!(InfluxValue::Integer(15), line.fields.get("age").cloned().unwrap());
+    /// assert_eq!(line.fields.len(), 1);
+    /// assert_eq!(line.fields.get("height"), None);
+    /// assert_eq!(line.fields.get("age").cloned().unwrap(), 15.into());
     /// ```
     ///
     /// ## Adding and overriding fields
@@ -117,11 +119,11 @@ impl InfluxLine {
     ///     .with_field("is_epic", true)
     ///     .with_field("name", "armstrong");
     ///
-    /// assert_eq!(InfluxValue::Float(1.82), line.fields.get("height").cloned().unwrap());
-    /// assert_eq!(InfluxValue::Integer(55), line.fields.get("age").cloned().unwrap());
-    /// assert_eq!(InfluxValue::Boolean(true), line.fields.get("is_epic").cloned().unwrap());
-    /// assert_eq!(InfluxValue::String("armstrong".into()), line.fields.get("name").cloned().unwrap());
-    /// assert_eq!(None, line.fields.get("non-existent"));
+    /// assert_eq!(line.fields.get("height").cloned().unwrap(), 1.82.into() );
+    /// assert_eq!(line.fields.get("age").cloned().unwrap(), 55.into());
+    /// assert_eq!(line.fields.get("is_epic").cloned().unwrap(), true.into() );
+    /// assert_eq!(line.fields.get("name").cloned().unwrap(), "armstrong".into());
+    /// assert_eq!(line.fields.get("non-existent"), None);
     /// ```
     pub fn with_field<S, V>(mut self, field: S, value: V) -> Self
     where
