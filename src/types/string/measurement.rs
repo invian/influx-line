@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use super::parser::LinearParser;
+use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 
 /// A measurement name with special restrictions on parsing and formatting stage.
 ///
@@ -58,22 +58,6 @@ use super::parser::LinearParser;
     derive_more::Index,
 )]
 pub struct MeasurementName(String);
-
-#[derive(Debug, thiserror::Error)]
-#[error("Name does not abide by naming restrictions")]
-pub struct NameRestrictionError;
-
-#[derive(Debug, thiserror::Error)]
-pub enum NameParseError {
-    #[error("Failed to parse name")]
-    Failed,
-    #[error("Special character is not escaped")]
-    SpecialCharacterNotEscaped,
-    #[error("Unable to process name with a trailing escape character")]
-    TrailingEscapeCharacter,
-    #[error(transparent)]
-    Malformed(#[from] NameRestrictionError),
-}
 
 impl MeasurementName {
     const SPECIAL_CHARACTERS: [char; 3] = [' ', '=', ','];

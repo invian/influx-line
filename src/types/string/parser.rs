@@ -1,5 +1,3 @@
-use super::name::NameParseError;
-
 #[derive(Debug, Clone)]
 pub struct LinearParser {
     buffer: Vec<char>,
@@ -8,8 +6,24 @@ pub struct LinearParser {
     escape_character: char,
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("Name does not abide by naming restrictions")]
+pub struct NameRestrictionError;
+
+#[derive(Debug, thiserror::Error)]
+pub enum NameParseError {
+    #[error("Failed to parse name")]
+    Failed,
+    #[error("Special character is not escaped")]
+    SpecialCharacterNotEscaped,
+    #[error("Unable to process name with a trailing escape character")]
+    TrailingEscapeCharacter,
+    #[error(transparent)]
+    Malformed(#[from] NameRestrictionError),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ParserState {
+enum ParserState {
     #[default]
     SeenCharacter,
     SeenEscapeCharacter,
@@ -17,7 +31,7 @@ pub enum ParserState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CharacterType {
+enum CharacterType {
     Normal,
     Special,
     Escape,
@@ -32,16 +46,6 @@ impl LinearParser {
             state: ParserState::default(),
             special_characters,
             escape_character,
-        }
-    }
-
-    pub fn character_type(&self, character: char) -> CharacterType {
-        if character == self.escape_character {
-            CharacterType::Escape
-        } else if self.special_characters.contains(&character) {
-            CharacterType::Special
-        } else {
-            CharacterType::Normal
         }
     }
 
@@ -90,5 +94,15 @@ impl LinearParser {
         }
 
         Ok(self.buffer.into_iter().collect())
+    }
+
+    fn character_type(&self, character: char) -> CharacterType {
+        if character == self.escape_character {
+            CharacterType::Escape
+        } else if self.special_characters.contains(&character) {
+            CharacterType::Special
+        } else {
+            CharacterType::Normal
+        }
     }
 }
