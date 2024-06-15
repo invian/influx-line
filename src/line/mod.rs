@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData};
 
 use chrono::{DateTime, Utc};
 
-use crate::types::InfluxValue;
+use crate::InfluxValue;
 
 /// Implements InfluxDB Line Protocol V2.
 ///

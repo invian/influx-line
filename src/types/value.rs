@@ -1,4 +1,4 @@
-use super::{InfluxInteger, InfluxUInteger};
+use crate::{InfluxInteger, InfluxUInteger};
 
 #[derive(Debug, Clone, PartialEq, derive_more::From)]
 pub enum InfluxValue {

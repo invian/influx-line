@@ -1,5 +1,8 @@
-mod line;
-mod types;
+pub(crate) mod line;
+pub(crate) mod types;
 
 pub use crate::line::InfluxLine;
-pub use crate::types::{InfluxValue, Timestamp};
+pub use crate::types::integer::{InfluxInteger, InfluxUInteger, NumberParseError};
+pub use crate::types::name::{InfluxName, MalformedNameError};
+pub use crate::types::timestamp::{Timestamp, TimestampParseError};
+pub use crate::types::value::InfluxValue;

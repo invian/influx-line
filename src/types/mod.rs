@@ -1,7 +1,4 @@
-mod integer;
-mod timestamp;
-mod value;
-
-pub use self::integer::*;
-pub use self::timestamp::*;
-pub use self::value::*;
+pub(crate) mod integer;
+pub(crate) mod name;
+pub(crate) mod timestamp;
+pub(crate) mod value;
