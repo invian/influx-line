@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData};
 
 use chrono::{DateTime, Utc};
 
-use crate::InfluxValue;
+use crate::{InfluxValue, MeasurementName, NameRestrictionError};
 
 /// Implements InfluxDB Line Protocol V2.
 ///
@@ -10,7 +10,7 @@ use crate::InfluxValue;
 #[derive(Debug, Clone)]
 pub struct InfluxLine {
     /// Required measurement name.
-    pub measurement: String,
+    pub measurement: MeasurementName,
     /// The original name `Tag Set` is not adapted for simplicity.
     pub tags: HashMap<String, String>,
     /// The original name `Field Set` is not adapted for simplicity.
@@ -22,20 +22,39 @@ pub struct InfluxLine {
 }
 
 impl InfluxLine {
-    pub fn new<S1, S2, V>(measurement: S1, field: S2, value: V) -> Self
+    pub fn new<K, V>(measurement: MeasurementName, field: K, value: V) -> Self
     where
-        S1: Into<String>,
-        S2: Into<String>,
+        K: Into<String>,
         V: Into<InfluxValue>,
     {
         let fields = [(field.into(), value.into())].into_iter().collect();
         Self {
-            measurement: measurement.into(),
+            measurement,
             tags: HashMap::new(),
             fields,
             timestamp: None,
             _phantom: PhantomData,
         }
+    }
+
+    pub fn try_new<M, K, V>(
+        measurement: M,
+        field: K,
+        value: V,
+    ) -> Result<Self, NameRestrictionError>
+    where
+        M: TryInto<MeasurementName, Error = NameRestrictionError>,
+        K: Into<String>,
+        V: Into<InfluxValue>,
+    {
+        let fields = [(field.into(), value.into())].into_iter().collect();
+        Ok(Self {
+            measurement: measurement.try_into()?,
+            tags: HashMap::new(),
+            fields,
+            timestamp: None,
+            _phantom: PhantomData,
+        })
     }
 
     /// # Examples
@@ -45,7 +64,7 @@ impl InfluxLine {
     /// use influx_line::*;
     ///
     /// let some_time = Utc::now();
-    /// let line = InfluxLine::new("human", "age", 15)
+    /// let line = InfluxLine::new("human".try_into().unwrap(), "age", 15)
     ///     .with_timestamp(some_time);
     ///
     /// assert_eq!(some_time, line.timestamp.unwrap());
@@ -65,7 +84,7 @@ impl InfluxLine {
     /// ```rust
     /// use influx_line::*;
     ///
-    /// let line = InfluxLine::new("human", "age", 15);
+    /// let line = InfluxLine::new("human".try_into().unwrap(), "age", 15);
     ///
     /// assert!(line.tags.is_empty());
     /// assert_eq!(line.tags.get("there are no tags yet, buddy"), None);
@@ -76,7 +95,7 @@ impl InfluxLine {
     /// ```rust
     /// use influx_line::*;
     ///
-    /// let line = InfluxLine::new("human", "age", 15)
+    /// let line = InfluxLine::new("human".try_into().unwrap(), "age", 15)
     ///     .with_tag("club", "art")
     ///     .with_tag("location", "siberia")
     ///     .with_tag("club", "sports");
@@ -101,7 +120,7 @@ impl InfluxLine {
     /// ```rust
     /// use influx_line::*;
     ///
-    /// let line = InfluxLine::new("human", "age", 15);
+    /// let line = InfluxLine::new("human".try_into().unwrap(), "age", 15);
     ///
     /// assert_eq!(line.fields.len(), 1);
     /// assert_eq!(line.fields.get("height"), None);
@@ -113,7 +132,7 @@ impl InfluxLine {
     /// ```rust
     /// use influx_line::*;
     ///
-    /// let line = InfluxLine::new("human", "age", 15)
+    /// let line = InfluxLine::new("human".try_into().unwrap(), "age", 15)
     ///     .with_field("height", 1.82)
     ///     .with_field("age", 55)
     ///     .with_field("is_epic", true)
