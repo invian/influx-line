@@ -1,3 +1,5 @@
+use super::name::NameParseError;
+
 #[derive(Debug, Clone)]
 pub struct LinearParser {
     buffer: Vec<char>,
@@ -43,7 +45,7 @@ impl LinearParser {
         }
     }
 
-    pub fn process_char(&mut self, character: char) -> bool {
+    pub fn process_char(&mut self, character: char) -> Result<(), NameParseError> {
         match (self.state, self.character_type(character)) {
             (ParserState::SeenCharacter, CharacterType::Normal) => {
                 self.buffer.push(character);
@@ -51,6 +53,7 @@ impl LinearParser {
             }
             (ParserState::SeenCharacter, CharacterType::Special) => {
                 self.state = ParserState::Error;
+                return Err(NameParseError::SpecialCharacterNotEscaped);
             }
             (ParserState::SeenCharacter, CharacterType::Escape) => {
                 self.state = ParserState::SeenEscapeCharacter;
@@ -68,19 +71,24 @@ impl LinearParser {
                 self.buffer.push(self.escape_character);
                 self.state = ParserState::SeenCharacter;
             }
-            (ParserState::Error, _) => self.state = ParserState::Error,
+            (ParserState::Error, _) => {
+                self.state = ParserState::Error;
+                return Err(NameParseError::Failed);
+            }
         }
 
-        self.state != ParserState::Error
+        Ok(())
     }
 
-    pub fn extract(self) -> Option<String> {
+    pub fn extract(self) -> Result<String, NameParseError> {
         match self.state {
             ParserState::SeenCharacter => (),
-            ParserState::SeenEscapeCharacter => return None,
-            ParserState::Error => return None,
+            ParserState::SeenEscapeCharacter => {
+                return Err(NameParseError::TrailingEscapeCharacter)
+            }
+            ParserState::Error => return Err(NameParseError::Failed),
         }
 
-        Some(self.buffer.into_iter().collect())
+        Ok(self.buffer.into_iter().collect())
     }
 }

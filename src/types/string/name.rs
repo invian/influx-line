@@ -60,17 +60,19 @@ use super::parser::LinearParser;
 pub struct MeasurementName(String);
 
 #[derive(Debug, thiserror::Error)]
-#[error("Invalid name: {0}")]
-pub struct MalformedNameError(String);
+#[error("Name does not abide by naming restrictions")]
+pub struct NameRestrictionError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum NameParseError {
-    #[error("Failed to parse name: {0}")]
-    Failed(String),
-    #[error("Failed to process character at position `{1}`: {0}")]
-    BadCharacter(String, usize),
+    #[error("Failed to parse name")]
+    Failed,
+    #[error("Special character is not escaped")]
+    SpecialCharacterNotEscaped,
+    #[error("Unable to process name with a trailing escape character")]
+    TrailingEscapeCharacter,
     #[error(transparent)]
-    Malformed(#[from] MalformedNameError),
+    Malformed(#[from] NameRestrictionError),
 }
 
 impl MeasurementName {
@@ -87,11 +89,11 @@ impl MeasurementName {
 }
 
 impl TryFrom<String> for MeasurementName {
-    type Error = MalformedNameError;
+    type Error = NameRestrictionError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         if value.is_empty() || value.starts_with('_') {
-            return Err(MalformedNameError(value));
+            return Err(NameRestrictionError);
         }
 
         Ok(Self(value))
@@ -99,7 +101,7 @@ impl TryFrom<String> for MeasurementName {
 }
 
 impl TryFrom<&str> for MeasurementName {
-    type Error = MalformedNameError;
+    type Error = NameRestrictionError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Self::try_from(String::from(value))
@@ -137,15 +139,10 @@ impl FromStr for MeasurementName {
         let mut parser =
             LinearParser::new(Self::SPECIAL_CHARACTERS.to_vec(), Self::ESCAPE_CHARACTER);
 
-        for (index, character) in s.chars().enumerate() {
-            let is_processed = parser.process_char(character);
-            if !is_processed {
-                return Err(NameParseError::BadCharacter(s.into(), index));
-            }
-        }
+        s.chars()
+            .try_for_each(|character| parser.process_char(character))?;
 
-        let parsed = parser.extract().ok_or(NameParseError::Failed(s.into()))?;
-        let name = MeasurementName::try_from(parsed)?;
+        let name = MeasurementName::try_from(parser.extract()?)?;
         Ok(name)
     }
 }
