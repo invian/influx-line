@@ -7,3 +7,7 @@ authors = ["DOCtorActoAntohich"]
 [dependencies]
 derive_more = "0.99"
 chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+
+[dev-dependencies]
+rstest = "0.21"
