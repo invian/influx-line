@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-/// A measurement, tag, or field name.
+use super::parser::LinearParser;
+
+/// A measurement name with special restrictions on parsing and formatting stage.
 ///
 /// Subject to [Naming restrictions](
 /// https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/#naming-restrictions
@@ -8,13 +10,40 @@ use std::str::FromStr;
 ///
 /// # Examples
 ///
+/// ## Creating instances
+///
+/// [`TryFrom`] implementation allows inserting human readable values.
+///
 /// ```rust
 /// use influx_line::*;
 ///
-/// let measurement = InfluxName::try_from(String::from("measurement")).unwrap();
-/// assert_eq!(measurement, "measurement");
+/// let measurement = MeasurementName::try_from(String::from("measurement")).unwrap();
+/// let raw_chicken = MeasurementName::try_from("raw chicken").unwrap();
 ///
-/// let malformed_name = InfluxName::try_from("_bad").unwrap_err();
+/// assert_eq!(measurement, "measurement");
+/// assert_eq!(raw_chicken, "raw chicken");
+/// ```
+///
+/// ## Naming restrictions
+///
+/// > The `_` namespace is reserved for InfluxDB system use.
+///
+/// ```rust
+/// use influx_line::*;
+///
+/// let _error = MeasurementName::try_from("_bad").unwrap_err();
+/// ```
+///
+/// ## Parsing from Line Protocol representation
+///
+/// [`FromStr`] implementation is made as a part of Line Protocol parsing.
+///
+/// ```rust
+/// use influx_line::*;
+/// use std::str::FromStr;
+///
+/// let measurement = MeasurementName::from_str(r#"escaped\ name"#).unwrap();
+/// assert_eq!(measurement, "escaped name");
 /// ```
 #[derive(
     Debug,
@@ -28,7 +57,7 @@ use std::str::FromStr;
     derive_more::Deref,
     derive_more::Index,
 )]
-pub struct InfluxName(String);
+pub struct MeasurementName(String);
 
 #[derive(Debug, thiserror::Error)]
 #[error("Invalid name: {0}")]
@@ -44,8 +73,9 @@ pub enum NameParseError {
     Malformed(#[from] MalformedNameError),
 }
 
-impl InfluxName {
+impl MeasurementName {
     const SPECIAL_CHARACTERS: [char; 3] = [' ', '=', ','];
+    const ESCAPE_CHARACTER: char = '\\';
 
     #[cfg(test)]
     fn unchecked<S>(name: S) -> Self
@@ -56,7 +86,7 @@ impl InfluxName {
     }
 }
 
-impl TryFrom<String> for InfluxName {
+impl TryFrom<String> for MeasurementName {
     type Error = MalformedNameError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -68,7 +98,7 @@ impl TryFrom<String> for InfluxName {
     }
 }
 
-impl TryFrom<&str> for InfluxName {
+impl TryFrom<&str> for MeasurementName {
     type Error = MalformedNameError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -76,121 +106,36 @@ impl TryFrom<&str> for InfluxName {
     }
 }
 
-impl AsRef<str> for InfluxName {
+impl AsRef<str> for MeasurementName {
     fn as_ref(&self) -> &str {
         self.0.as_ref()
     }
 }
 
-impl PartialEq<str> for InfluxName {
+impl PartialEq<str> for MeasurementName {
     fn eq(&self, other: &str) -> bool {
         self.0 == other
     }
 }
 
-impl PartialEq<&str> for InfluxName {
+impl PartialEq<&str> for MeasurementName {
     fn eq(&self, other: &&str) -> bool {
         self.0 == *other
     }
 }
 
-impl PartialEq<String> for InfluxName {
+impl PartialEq<String> for MeasurementName {
     fn eq(&self, other: &String) -> bool {
         self.0 == other.as_str()
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-enum ParserState {
-    #[default]
-    SeenCharacter,
-    SeenEscapeCharacter,
-    Error,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CharacterState {
-    Normal,
-    Special,
-    Escape,
-}
-
-impl From<char> for CharacterState {
-    fn from(value: char) -> Self {
-        if value == '\\' {
-            Self::Escape
-        } else if InfluxName::SPECIAL_CHARACTERS.contains(&value) {
-            Self::Special
-        } else {
-            Self::Normal
-        }
-    }
-}
-
-struct Parser {
-    buffer: Vec<char>,
-    state: ParserState,
-}
-
-impl Parser {
-    fn new() -> Self {
-        Self {
-            buffer: Vec::with_capacity(1024),
-            state: ParserState::default(),
-        }
-    }
-
-    fn process_char(&mut self, character: char) -> bool {
-        let char_state = CharacterState::from(character);
-
-        match (self.state, char_state) {
-            (ParserState::SeenCharacter, CharacterState::Normal) => {
-                self.buffer.push(character);
-                self.state = ParserState::SeenCharacter
-            }
-            (ParserState::SeenCharacter, CharacterState::Special) => {
-                self.state = ParserState::Error;
-            }
-            (ParserState::SeenCharacter, CharacterState::Escape) => {
-                self.state = ParserState::SeenEscapeCharacter;
-            }
-            (ParserState::SeenEscapeCharacter, CharacterState::Normal) => {
-                self.buffer.push('\\');
-                self.buffer.push(character);
-                self.state = ParserState::SeenCharacter;
-            }
-            (ParserState::SeenEscapeCharacter, CharacterState::Special) => {
-                self.buffer.push(character);
-                self.state = ParserState::SeenCharacter;
-            }
-            (ParserState::SeenEscapeCharacter, CharacterState::Escape) => {
-                self.buffer.push('\\');
-                self.state = ParserState::SeenCharacter;
-            }
-            (ParserState::Error, _) => self.state = ParserState::Error,
-        }
-
-        self.state != ParserState::Error
-    }
-
-    fn extract(mut self) -> Option<String> {
-        match self.state {
-            ParserState::SeenCharacter => (),
-            ParserState::SeenEscapeCharacter => {
-                self.buffer.push('\\');
-            }
-            ParserState::Error => return None,
-        }
-
-        Some(self.buffer.into_iter().collect())
-    }
-}
-
-impl FromStr for InfluxName {
+impl FromStr for MeasurementName {
     type Err = NameParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parser = Parser::new();
+        let mut parser =
+            LinearParser::new(Self::SPECIAL_CHARACTERS.to_vec(), Self::ESCAPE_CHARACTER);
 
         for (index, character) in s.chars().enumerate() {
             let is_processed = parser.process_char(character);
@@ -200,7 +145,7 @@ impl FromStr for InfluxName {
         }
 
         let parsed = parser.extract().ok_or(NameParseError::Failed(s.into()))?;
-        let name = InfluxName::try_from(parsed)?;
+        let name = MeasurementName::try_from(parsed)?;
         Ok(name)
     }
 }
@@ -209,33 +154,31 @@ impl FromStr for InfluxName {
 mod tests {
     use std::str::FromStr;
 
-    use crate::InfluxName;
+    use crate::MeasurementName;
 
     #[rstest::rstest]
-    #[case::no_special_characters(r#"amogus"#, InfluxName::unchecked("amogus"))]
-    #[case::escaped_space(r#"hello\ man"#, InfluxName::unchecked("hello man"))]
-    #[case::escaped_comma(r#"milk\,bread\,butter"#, InfluxName::unchecked("milk,bread,butter"))]
-    #[case::escaped_equals(r#"a\=b"#, InfluxName::unchecked("a=b"))]
-    #[case::unescaped_quote(r#"stupid"quote"#, InfluxName::unchecked("stupid\"quote"))]
-    #[case::slashes_1_1(r#"a\a"#, InfluxName::unchecked(r#"a\a"#))]
-    #[case::slashes_2_1(r#"a\\a"#, InfluxName::unchecked(r#"a\a"#))]
-    #[case::slashes_3_2(r#"a\\\a"#, InfluxName::unchecked(r#"a\\a"#))]
-    #[case::slashes_4_2(r#"a\\\\a"#, InfluxName::unchecked(r#"a\\a"#))]
-    #[case::slashes_5_3(r#"a\\\\\a"#, InfluxName::unchecked(r#"a\\\a"#))]
-    #[case::slashes_6_3(r#"a\\\\\\a"#, InfluxName::unchecked(r#"a\\\a"#))]
-    #[case::only_slashes_1_1(r#"\"#, InfluxName::unchecked(r#"\"#))]
-    #[case::only_slashes_2_1(r#"\\"#, InfluxName::unchecked(r#"\"#))]
-    #[case::only_slashes_3_2(r#"\\\"#, InfluxName::unchecked(r#"\\"#))]
-    #[case::only_slashes_4_2(r#"\\\\"#, InfluxName::unchecked(r#"\\"#))]
-    #[case::only_slashes_5_3(r#"\\\\\"#, InfluxName::unchecked(r#"\\\"#))]
-    #[case::only_slashes_6_3(r#"\\\\\\"#, InfluxName::unchecked(r#"\\\"#))]
+    #[case::no_special_characters(r#"amogus"#, MeasurementName::unchecked("amogus"))]
+    #[case::unescaped_quote(r#"stupid"quote"#, MeasurementName::unchecked(r#"stupid"quote"#))]
+    #[case::escaped_space(r#"hello\ man"#, MeasurementName::unchecked("hello man"))]
+    #[case::escaped_comma(
+        r#"milk\,bread\,butter"#,
+        MeasurementName::unchecked("milk,bread,butter")
+    )]
+    #[case::escaped_equals(r#"a\=b"#, MeasurementName::unchecked("a=b"))]
+    #[case::slashes_1_1(r#"a\a"#, MeasurementName::unchecked(r#"a\a"#))]
+    #[case::slashes_2_1(r#"a\\a"#, MeasurementName::unchecked(r#"a\a"#))]
+    #[case::slashes_3_2(r#"a\\\a"#, MeasurementName::unchecked(r#"a\\a"#))]
+    #[case::slashes_4_2(r#"a\\\\a"#, MeasurementName::unchecked(r#"a\\a"#))]
+    #[case::slashes_5_3(r#"a\\\\\a"#, MeasurementName::unchecked(r#"a\\\a"#))]
+    #[case::slashes_6_3(r#"a\\\\\\a"#, MeasurementName::unchecked(r#"a\\\a"#))]
+    #[case::double_trailing_slash(r#"haha\\"#, MeasurementName::unchecked(r#"haha\"#))]
     #[case::everything(
         r#"day\ when\ f(x\,\ y)\ \=\ 10"#,
-        InfluxName::unchecked("day when f(x, y) = 10")
+        MeasurementName::unchecked("day when f(x, y) = 10")
     )]
-    #[case::unicode(r#"💀\ dead\ man\ 💀"#, InfluxName::unchecked("💀 dead man 💀"))]
-    fn successful_parsing(#[case] escaped_input: &str, #[case] expected_name: InfluxName) {
-        let actual_name = InfluxName::from_str(&escaped_input).expect("Must parse here");
+    #[case::unicode(r#"💀\ dead\ man\ 💀"#, MeasurementName::unchecked("💀 dead man 💀"))]
+    fn successful_parsing(#[case] escaped_input: &str, #[case] expected_name: MeasurementName) {
+        let actual_name = MeasurementName::from_str(&escaped_input).expect("Must parse here");
 
         assert_eq!(expected_name, actual_name);
     }
@@ -248,6 +191,6 @@ mod tests {
     #[case::trailing_slash(r#"we\ are\ number\ one\"#)]
     #[case::starts_with_underscore(r#"_reserved"#)]
     fn parsing_fails(#[case] escaped_input: &str) {
-        let _parse_error = InfluxName::from_str(escaped_input).expect_err("Must return error");
+        let _parse_error = MeasurementName::from_str(escaped_input).expect_err("Must return error");
     }
 }
