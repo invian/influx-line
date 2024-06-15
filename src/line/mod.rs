@@ -4,6 +4,9 @@ use chrono::{DateTime, Utc};
 
 use crate::types::InfluxValue;
 
+/// Implements InfluxDB Line Protocol V2.
+///
+/// Described [here](https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/).
 #[derive(Debug, Clone)]
 pub struct InfluxLine {
     pub measurement: String,
