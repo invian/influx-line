@@ -1,5 +1,5 @@
 #[derive(Debug, Clone)]
-pub struct LinearParser {
+pub(super) struct LinearParser {
     buffer: Vec<char>,
     state: ParserState,
     special_characters: Vec<char>,

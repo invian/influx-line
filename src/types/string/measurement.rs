@@ -1,4 +1,7 @@
+use std::fmt::Display;
 use std::str::FromStr;
+
+use crate::types::string::formatter::LinearFormatter;
 
 use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 
@@ -10,9 +13,29 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 ///
 /// # Examples
 ///
+/// ## Line Protocol Representation
+///
+/// - [`FromStr`] parses from the Line Protocol.
+/// - [`Display`] trait formats for Line Protocol.
+///
+/// ```rust
+/// use std::fmt::Display;
+/// use std::str::FromStr;
+/// use influx_line::*;
+///
+/// let line_protocol_repr = r#"escaped\ name\,\ has\ commas"#;
+/// let measurement = MeasurementName::from_str(line_protocol_repr).unwrap();
+///
+/// assert_eq!(measurement, "escaped name, has commas");
+/// assert_eq!(line_protocol_repr, measurement.to_string());
+/// ```
+///
 /// ## Creating instances
 ///
-/// [`TryFrom`] implementation allows inserting human readable values.
+/// [`TryFrom`] implementation allows inserting human readable values
+/// (i.e., no need to parse escaped sequences).
+///
+/// [`AsRef<str>`] makes the type almost equivalent to built-in strings.
 ///
 /// ```rust
 /// use influx_line::*;
@@ -26,7 +49,7 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 ///
 /// ## Naming restrictions
 ///
-/// > The `_` namespace is reserved for InfluxDB system use.
+/// "The `_` namespace is reserved for InfluxDB system use".
 ///
 /// ```rust
 /// use influx_line::*;
@@ -34,17 +57,6 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 /// let _error = MeasurementName::try_from("_bad").unwrap_err();
 /// ```
 ///
-/// ## Parsing from Line Protocol representation
-///
-/// [`FromStr`] implementation is made as a part of Line Protocol parsing.
-///
-/// ```rust
-/// use influx_line::*;
-/// use std::str::FromStr;
-///
-/// let measurement = MeasurementName::from_str(r#"escaped\ name"#).unwrap();
-/// assert_eq!(measurement, "escaped name");
-/// ```
 #[derive(
     Debug,
     Clone,
@@ -131,6 +143,13 @@ impl FromStr for MeasurementName {
     }
 }
 
+impl Display for MeasurementName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let formatter = LinearFormatter::new(&Self::SPECIAL_CHARACTERS, &Self::ESCAPE_CHARACTER);
+        write!(f, "{}", formatter.chars(&self).collect::<String>())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -173,5 +192,15 @@ mod tests {
     #[case::starts_with_underscore(r#"_reserved"#)]
     fn parsing_fails(#[case] escaped_input: &str) {
         let _parse_error = MeasurementName::from_str(escaped_input).expect_err("Must return error");
+    }
+
+    #[rstest::rstest]
+    #[case::with_space(MeasurementName::unchecked(r#"john cena"#), r#"john\ cena"#)]
+    #[case::with_comma(MeasurementName::unchecked(r#"you,me"#), r#"you\,me"#)]
+    #[case::silly_escapes_combination(MeasurementName::unchecked(r#"a\ b"#), r#"a\\ b"#)]
+    fn display(#[case] name: MeasurementName, #[case] expected_string: &str) {
+        let actual_string = name.to_string();
+
+        assert_eq!(expected_string, actual_string);
     }
 }
