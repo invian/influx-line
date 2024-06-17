@@ -1,8 +1,8 @@
 use std::{fmt::Display, str::FromStr};
 
-use crate::{types::string::formatter::LinearFormatter, NameParseError, NameRestrictionError};
+use crate::{types::string::formatter::LinearFormatter, NameRestrictionError, ParseError};
 
-use super::parser::LinearParser;
+use super::parser::{LinearParser, StrayEscapes};
 
 /// Represents a Tag or Field name,
 /// and takes into account its [Naming restrictions](
@@ -76,6 +76,14 @@ use super::parser::LinearParser;
 )]
 pub struct KeyName(String);
 
+#[derive(Debug, thiserror::Error)]
+pub enum KeyNameParseError {
+    #[error(transparent)]
+    Parse(#[from] ParseError),
+    #[error(transparent)]
+    Restristion(#[from] NameRestrictionError),
+}
+
 impl KeyName {
     const SPECIAL_CHARACTERS: [char; 3] = [',', '=', ' '];
     const ESCAPE_CHARACTER: char = '\\';
@@ -115,10 +123,14 @@ impl AsRef<str> for KeyName {
 }
 
 impl FromStr for KeyName {
-    type Err = NameParseError;
+    type Err = KeyNameParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parser = LinearParser::new(&Self::SPECIAL_CHARACTERS, &Self::ESCAPE_CHARACTER);
+        let mut parser = LinearParser::new(
+            &Self::SPECIAL_CHARACTERS,
+            &Self::ESCAPE_CHARACTER,
+            StrayEscapes::Allow,
+        );
 
         s.chars()
             .try_for_each(|character| parser.process_char(character))?;

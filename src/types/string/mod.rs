@@ -5,7 +5,7 @@ mod parser;
 
 pub use self::key::KeyName;
 pub use self::measurement::MeasurementName;
-pub use self::parser::NameParseError;
+pub use self::parser::ParseError;
 
 #[derive(Debug, thiserror::Error)]
 #[error("Name does not abide by naming restrictions")]

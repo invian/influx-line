@@ -3,7 +3,10 @@ use std::str::FromStr;
 
 use crate::types::string::formatter::LinearFormatter;
 
-use super::{parser::LinearParser, NameParseError, NameRestrictionError};
+use super::{
+    parser::{LinearParser, StrayEscapes},
+    NameRestrictionError, ParseError,
+};
 
 /// Represents a measurement name,
 /// and takes into account its [Naming restrictions](
@@ -78,6 +81,14 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 )]
 pub struct MeasurementName(String);
 
+#[derive(Debug, thiserror::Error)]
+pub enum MeasurementNameParseError {
+    #[error(transparent)]
+    Parse(#[from] ParseError),
+    #[error(transparent)]
+    Restristion(#[from] NameRestrictionError),
+}
+
 impl MeasurementName {
     const SPECIAL_CHARACTERS: [char; 2] = [',', ' '];
     const ESCAPE_CHARACTER: char = '\\';
@@ -117,10 +128,14 @@ impl AsRef<str> for MeasurementName {
 }
 
 impl FromStr for MeasurementName {
-    type Err = NameParseError;
+    type Err = MeasurementNameParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parser = LinearParser::new(&Self::SPECIAL_CHARACTERS, &Self::ESCAPE_CHARACTER);
+        let mut parser = LinearParser::new(
+            &Self::SPECIAL_CHARACTERS,
+            &Self::ESCAPE_CHARACTER,
+            StrayEscapes::Allow,
+        );
 
         s.chars()
             .try_for_each(|character| parser.process_char(character))?;
