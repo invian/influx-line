@@ -118,8 +118,7 @@ impl FromStr for KeyName {
     type Err = NameParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parser =
-            LinearParser::new(Self::SPECIAL_CHARACTERS.to_vec(), Self::ESCAPE_CHARACTER);
+        let mut parser = LinearParser::new(&Self::SPECIAL_CHARACTERS, &Self::ESCAPE_CHARACTER);
 
         s.chars()
             .try_for_each(|character| parser.process_char(character))?;

@@ -1,11 +1,11 @@
 use crate::NameRestrictionError;
 
 #[derive(Debug, Clone)]
-pub(super) struct LinearParser {
+pub(super) struct LinearParser<'a> {
     buffer: Vec<char>,
     state: ParserState,
-    special_characters: Vec<char>,
-    escape_character: char,
+    special_characters: &'a [char],
+    escape_character: &'a char,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -35,10 +35,10 @@ enum CharacterType {
     Escape,
 }
 
-impl LinearParser {
+impl<'a> LinearParser<'a> {
     const DEFAULT_BUFFER_SIZE: usize = 1024;
 
-    pub fn new(special_characters: Vec<char>, escape_character: char) -> Self {
+    pub fn new(special_characters: &'a [char], escape_character: &'a char) -> Self {
         Self {
             buffer: Vec::with_capacity(Self::DEFAULT_BUFFER_SIZE),
             state: ParserState::default(),
@@ -61,7 +61,7 @@ impl LinearParser {
                 self.state = ParserState::SeenEscapeCharacter;
             }
             (ParserState::SeenEscapeCharacter, CharacterType::Normal) => {
-                self.buffer.push(self.escape_character);
+                self.buffer.push(*self.escape_character);
                 self.buffer.push(character);
                 self.state = ParserState::SeenCharacter;
             }
@@ -70,7 +70,7 @@ impl LinearParser {
                 self.state = ParserState::SeenCharacter;
             }
             (ParserState::SeenEscapeCharacter, CharacterType::Escape) => {
-                self.buffer.push(self.escape_character);
+                self.buffer.push(*self.escape_character);
                 self.state = ParserState::SeenCharacter;
             }
             (ParserState::Error, _) => {
@@ -95,7 +95,7 @@ impl LinearParser {
     }
 
     fn character_type(&self, character: char) -> CharacterType {
-        if character == self.escape_character {
+        if character == *self.escape_character {
             CharacterType::Escape
         } else if self.special_characters.contains(&character) {
             CharacterType::Special
