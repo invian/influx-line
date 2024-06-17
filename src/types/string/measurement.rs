@@ -72,7 +72,7 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 pub struct MeasurementName(String);
 
 impl MeasurementName {
-    const SPECIAL_CHARACTERS: [char; 2] = [' ', ','];
+    const SPECIAL_CHARACTERS: [char; 2] = [',', ' '];
     const ESCAPE_CHARACTER: char = '\\';
 
     #[cfg(test)]
