@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 
-/// Represents a Timestamp at the end of the Line Protocol.
+/// Represents a Timestamp (in nanoseconds) at the end of the Line Protocol.
 #[derive(
     Debug,
     Clone,
