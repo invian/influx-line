@@ -1,6 +1,10 @@
+mod formatter;
 mod measurement;
 mod parser;
-mod formatter;
 
 pub use self::measurement::MeasurementName;
-pub use self::parser::{NameParseError, NameRestrictionError};
+pub use self::parser::NameParseError;
+
+#[derive(Debug, thiserror::Error)]
+#[error("Name does not abide by naming restrictions")]
+pub struct NameRestrictionError;

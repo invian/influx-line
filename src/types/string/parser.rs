@@ -1,3 +1,5 @@
+use crate::NameRestrictionError;
+
 #[derive(Debug, Clone)]
 pub(super) struct LinearParser {
     buffer: Vec<char>,
@@ -5,10 +7,6 @@ pub(super) struct LinearParser {
     special_characters: Vec<char>,
     escape_character: char,
 }
-
-#[derive(Debug, thiserror::Error)]
-#[error("Name does not abide by naming restrictions")]
-pub struct NameRestrictionError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum NameParseError {
