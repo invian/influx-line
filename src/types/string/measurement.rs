@@ -26,7 +26,7 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 /// let line_protocol_repr = r#"escaped\ name\,\ has\ commas"#;
 /// let measurement = MeasurementName::from_str(line_protocol_repr).unwrap();
 ///
-/// assert_eq!(measurement, "escaped name, has commas");
+/// assert_eq!(measurement.as_str(), "escaped name, has commas");
 /// assert_eq!(line_protocol_repr, measurement.to_string());
 /// ```
 ///
@@ -43,8 +43,8 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 /// let measurement = MeasurementName::try_from(String::from("measurement")).unwrap();
 /// let raw_chicken = MeasurementName::try_from("raw chicken").unwrap();
 ///
-/// assert_eq!(measurement, "measurement");
-/// assert_eq!(raw_chicken, "raw chicken");
+/// assert_eq!(measurement.as_str(), "measurement");
+/// assert_eq!(raw_chicken.as_str(), "raw chicken");
 /// ```
 ///
 /// ## Naming restrictions
@@ -110,24 +110,6 @@ impl AsRef<str> for MeasurementName {
     }
 }
 
-impl PartialEq<str> for MeasurementName {
-    fn eq(&self, other: &str) -> bool {
-        self.0 == other
-    }
-}
-
-impl PartialEq<&str> for MeasurementName {
-    fn eq(&self, other: &&str) -> bool {
-        self.0 == *other
-    }
-}
-
-impl PartialEq<String> for MeasurementName {
-    fn eq(&self, other: &String) -> bool {
-        self.0 == other.as_str()
-    }
-}
-
 impl FromStr for MeasurementName {
     type Err = NameParseError;
 
@@ -146,7 +128,7 @@ impl FromStr for MeasurementName {
 impl Display for MeasurementName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let formatter = LinearFormatter::new(&Self::SPECIAL_CHARACTERS, &Self::ESCAPE_CHARACTER);
-        write!(f, "{}", formatter.chars(&self).collect::<String>())
+        write!(f, "{}", formatter.chars(self).collect::<String>())
     }
 }
 
