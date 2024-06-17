@@ -39,7 +39,7 @@ enum CharacterType {
 }
 
 impl<'a> LinearParser<'a> {
-    const DEFAULT_BUFFER_SIZE: usize = 1024;
+    const DEFAULT_BUFFER_SIZE: usize = 64;
 
     pub fn new(
         special_characters: &'a [char],
