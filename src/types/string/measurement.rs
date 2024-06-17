@@ -5,9 +5,8 @@ use crate::types::string::formatter::LinearFormatter;
 
 use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 
-/// A measurement name with special restrictions on parsing and formatting stage.
-///
-/// Subject to [Naming restrictions](
+/// Represents a measurement name,
+/// and takes into account its [Naming restrictions](
 /// https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/#naming-restrictions
 /// ).
 ///
@@ -32,19 +31,23 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 ///
 /// ## Creating instances
 ///
-/// [`TryFrom`] implementation allows inserting human readable values
-/// (i.e., no need to parse escaped sequences).
+/// Two methods are available.
+/// Both of them accept human readable strings
+/// (i.e., no need to escape characters).
 ///
-/// [`AsRef<str>`] makes the type almost equivalent to built-in strings.
+/// - A dedicated constructor - [`Self::new`].
+/// - A polymorphic [`TryFrom`] implementation.
 ///
 /// ```rust
 /// use influx_line::*;
 ///
-/// let measurement = MeasurementName::try_from(String::from("measurement")).unwrap();
-/// let raw_chicken = MeasurementName::try_from("raw chicken").unwrap();
+/// let chicken: String = "raw chicken".into();
+/// let raw_chicken = MeasurementName::new(chicken).unwrap();
 ///
-/// assert_eq!(measurement.as_str(), "measurement");
+/// let measurement = MeasurementName::new("measurement").unwrap();
+///
 /// assert_eq!(raw_chicken.as_str(), "raw chicken");
+/// assert_eq!(measurement.as_str(), "measurement");
 /// ```
 ///
 /// ## Naming restrictions
@@ -56,7 +59,6 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 ///
 /// let _error = MeasurementName::try_from("_bad").unwrap_err();
 /// ```
-///
 #[derive(
     Debug,
     Clone,
@@ -75,12 +77,15 @@ impl MeasurementName {
     const SPECIAL_CHARACTERS: [char; 2] = [',', ' '];
     const ESCAPE_CHARACTER: char = '\\';
 
-    #[cfg(test)]
-    fn unchecked<S>(name: S) -> Self
+    pub fn new<S>(name: S) -> Result<Self, NameRestrictionError>
     where
-        S: Into<String>,
+        S: AsRef<str> + Into<String>,
     {
-        Self(name.into())
+        if name.as_ref().is_empty() || name.as_ref().starts_with('_') {
+            return Err(NameRestrictionError);
+        }
+
+        Ok(Self(name.into()))
     }
 }
 
@@ -88,11 +93,7 @@ impl TryFrom<String> for MeasurementName {
     type Error = NameRestrictionError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        if value.is_empty() || value.starts_with('_') {
-            return Err(NameRestrictionError);
-        }
-
-        Ok(Self(value))
+        Self::new(value)
     }
 }
 
@@ -100,7 +101,7 @@ impl TryFrom<&str> for MeasurementName {
     type Error = NameRestrictionError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::try_from(String::from(value))
+        Self::new(value)
     }
 }
 
@@ -139,28 +140,24 @@ mod tests {
     use crate::MeasurementName;
 
     #[rstest::rstest]
-    #[case::no_special_characters(r#"amogus"#, MeasurementName::unchecked("amogus"))]
-    #[case::unescaped_equals(r#"1+1=10"#, MeasurementName::unchecked(r#"1+1=10"#))]
-    #[case::escaped_equals(r#"a\=b"#, MeasurementName::unchecked(r#"a\=b"#))]
-    #[case::unescaped_quote(r#"stupid"quote"#, MeasurementName::unchecked(r#"stupid"quote"#))]
-    #[case::escaped_space(r#"hello\ man"#, MeasurementName::unchecked("hello man"))]
-    #[case::escaped_comma(
-        r#"milk\,bread\,butter"#,
-        MeasurementName::unchecked("milk,bread,butter")
-    )]
-    #[case::slashes_1_1(r#"a\a"#, MeasurementName::unchecked(r#"a\a"#))]
-    #[case::slashes_2_1(r#"a\\a"#, MeasurementName::unchecked(r#"a\a"#))]
-    #[case::slashes_3_2(r#"a\\\a"#, MeasurementName::unchecked(r#"a\\a"#))]
-    #[case::slashes_4_2(r#"a\\\\a"#, MeasurementName::unchecked(r#"a\\a"#))]
-    #[case::slashes_5_3(r#"a\\\\\a"#, MeasurementName::unchecked(r#"a\\\a"#))]
-    #[case::slashes_6_3(r#"a\\\\\\a"#, MeasurementName::unchecked(r#"a\\\a"#))]
-    #[case::double_trailing_slash(r#"haha\\"#, MeasurementName::unchecked(r#"haha\"#))]
-    #[case::everything(
-        r#"day\ when\ f(x\,\ y)\ =\ 10"#,
-        MeasurementName::unchecked("day when f(x, y) = 10")
-    )]
-    #[case::unicode(r#"💀\ dead\ man\ 💀"#, MeasurementName::unchecked("💀 dead man 💀"))]
-    fn successful_parsing(#[case] escaped_input: &str, #[case] expected_name: MeasurementName) {
+    #[case::no_special_characters(r#"amogus"#, "amogus")]
+    #[case::unescaped_equals(r#"1+1=10"#, r#"1+1=10"#)]
+    #[case::escaped_equals(r#"a\=b"#, r#"a\=b"#)]
+    #[case::unescaped_quote(r#"stupid"quote"#, r#"stupid"quote"#)]
+    #[case::escaped_space(r#"hello\ man"#, "hello man")]
+    #[case::escaped_comma(r#"milk\,bread\,butter"#, "milk,bread,butter")]
+    #[case::slashes_1_1(r#"a\a"#, r#"a\a"#)]
+    #[case::slashes_2_1(r#"a\\a"#, r#"a\a"#)]
+    #[case::slashes_3_2(r#"a\\\a"#, r#"a\\a"#)]
+    #[case::slashes_4_2(r#"a\\\\a"#, r#"a\\a"#)]
+    #[case::slashes_5_3(r#"a\\\\\a"#, r#"a\\\a"#)]
+    #[case::slashes_6_3(r#"a\\\\\\a"#, r#"a\\\a"#)]
+    #[case::double_trailing_slash(r#"haha\\"#, r#"haha\"#)]
+    #[case::everything(r#"day\ when\ f(x\,\ y)\ =\ 10"#, "day when f(x, y) = 10")]
+    #[case::unicode(r#"💀\ dead\ man\ 💀"#, "💀 dead man 💀")]
+    fn successful_parsing(#[case] escaped_input: &str, #[case] expected_raw: &str) {
+        let expected_name = MeasurementName::new(expected_raw).expect("Must be a valid name");
+
         let actual_name = MeasurementName::from_str(&escaped_input).expect("Must parse here");
 
         assert_eq!(expected_name, actual_name);
@@ -177,10 +174,12 @@ mod tests {
     }
 
     #[rstest::rstest]
-    #[case::with_space(MeasurementName::unchecked(r#"john cena"#), r#"john\ cena"#)]
-    #[case::with_comma(MeasurementName::unchecked(r#"you,me"#), r#"you\,me"#)]
-    #[case::silly_escapes_combination(MeasurementName::unchecked(r#"a\ b"#), r#"a\\ b"#)]
-    fn display(#[case] name: MeasurementName, #[case] expected_string: &str) {
+    #[case::with_space(r#"john cena"#, r#"john\ cena"#)]
+    #[case::with_comma(r#"you,me"#, r#"you\,me"#)]
+    #[case::silly_escapes_combination(r#"a\ b"#, r#"a\\ b"#)]
+    fn display(#[case] input: &str, #[case] expected_string: &str) {
+        let name = MeasurementName::new(input).expect("Must be a valid name");
+
         let actual_string = name.to_string();
 
         assert_eq!(expected_string, actual_string);
