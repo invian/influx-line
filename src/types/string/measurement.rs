@@ -10,6 +10,9 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 /// https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/#naming-restrictions
 /// ).
 ///
+/// Automatically escapes special symbols on parsing and formatting.
+/// Special symbols are comma `','` and space `' '`.
+///
 /// # Examples
 ///
 /// ## Line Protocol Representation
@@ -38,6 +41,8 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 /// - A dedicated constructor - [`Self::new`].
 /// - A polymorphic [`TryFrom`] implementation.
 ///
+/// [`AsRef<str>`] accesses the unescaped string.
+///
 /// ```rust
 /// use influx_line::*;
 ///
@@ -47,7 +52,7 @@ use super::{parser::LinearParser, NameParseError, NameRestrictionError};
 /// let measurement = MeasurementName::new("measurement").unwrap();
 ///
 /// assert_eq!(raw_chicken.as_str(), "raw chicken");
-/// assert_eq!(measurement.as_str(), "measurement");
+/// assert_eq!(measurement.as_ref(), "measurement");
 /// ```
 ///
 /// ## Naming restrictions
