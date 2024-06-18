@@ -31,8 +31,8 @@ impl FromStr for Boolean {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "t" | "T" | "true" | "True" | "TRUE" => return Ok(Boolean(true)),
-            "f" | "F" | "false" | "False" | "FALSE" => return Ok(Boolean(false)),
+            "t" | "T" | "true" | "True" | "TRUE" => Ok(Boolean(true)),
+            "f" | "F" | "false" | "False" | "FALSE" => Ok(Boolean(false)),
             _ => Err(BooleanParseError),
         }
     }
