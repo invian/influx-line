@@ -2,7 +2,8 @@
 name = "influx-line"
 version = "0.1.0"
 edition = "2021"
-authors = ["DOCtorActoAntohich"]
+authors = ["Invian"]
+license-file = "LICENSE"
 
 [dependencies]
 derive_more = "0.99"
