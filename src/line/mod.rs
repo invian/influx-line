@@ -1,20 +1,21 @@
-use std::collections::HashMap;
+mod hash_like;
 
 use chrono::{DateTime, Utc};
+use hash_like::KeyValueStorage;
 
 use crate::{InfluxValue, KeyName, MeasurementName, NameRestrictionError};
 
 /// Implements InfluxDB Line Protocol V2.
 ///
 /// Described [here](https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InfluxLine {
     /// Required measurement name.
     measurement: MeasurementName,
     /// The original name `Tag Set` is not adapted for simplicity.
-    tags: HashMap<KeyName, KeyName>,
+    tags: KeyValueStorage<KeyName>,
     /// The original name `Field Set` is not adapted for simplicity.
-    fields: HashMap<KeyName, InfluxValue>,
+    fields: KeyValueStorage<InfluxValue>,
     /// [`DateTime`] sounds more readable for a timestamp.
     timestamp: Option<DateTime<Utc>>,
 }
@@ -27,7 +28,7 @@ impl InfluxLine {
         let fields = [(field, value.into())].into_iter().collect();
         Self {
             measurement,
-            tags: HashMap::new(),
+            tags: KeyValueStorage::new(),
             fields,
             timestamp: None,
         }
@@ -45,7 +46,7 @@ impl InfluxLine {
         let fields = [(field, value.into())].into_iter().collect();
         Ok(Self {
             measurement: measurement.try_into()?,
-            tags: HashMap::new(),
+            tags: KeyValueStorage::new(),
             fields,
             timestamp: None,
         })
@@ -59,18 +60,14 @@ impl InfluxLine {
     where
         S: AsRef<str>,
     {
-        self.tags
-            .iter()
-            .find_map(|(key, value)| (key.as_str() == name.as_ref()).then_some(value))
+        self.tags.get(name)
     }
 
     pub fn field<S>(&self, name: S) -> Option<&InfluxValue>
     where
         S: AsRef<str>,
     {
-        self.fields
-            .iter()
-            .find_map(|(key, value)| (key.as_str() == name.as_ref()).then_some(value))
+        self.fields.get(name)
     }
 
     pub fn timestamp(&self) -> Option<DateTime<Utc>> {
@@ -130,7 +127,7 @@ impl InfluxLine {
     /// assert_eq!(line.tag("not added yet lol"), None);
     /// ```
     pub fn with_tag(mut self, tag: KeyName, value: KeyName) -> Self {
-        self.tags.insert(tag.into(), value.into());
+        self.tags.put(tag, value);
         self
     }
 
@@ -172,7 +169,7 @@ impl InfluxLine {
     where
         V: Into<InfluxValue>,
     {
-        self.fields.insert(field, value.into());
+        self.fields.put(field, value.into());
         self
     }
 }
