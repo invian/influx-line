@@ -1,4 +1,5 @@
 mod hash_like;
+mod parsing;
 
 use chrono::{DateTime, Utc};
 use hash_like::KeyValueStorage;
@@ -18,6 +19,30 @@ pub struct InfluxLine {
     fields: KeyValueStorage<InfluxValue>,
     /// [`DateTime`] sounds more readable for a timestamp.
     timestamp: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum InfluxLineParseError {
+    #[error("Failed to parse special character")]
+    Failed,
+    #[error("No value found")]
+    NoValue,
+    #[error("Failed to find measurement")]
+    NoMeasurement,
+    #[error("Failed to find fields set")]
+    NoFields,
+    #[error("Unexpected escape symbol")]
+    UnexpectedEscapeSymbol,
+    #[error("Unescaped special character found")]
+    UnescapedSpecialCharacter,
+    #[error("Space delimiter not found")]
+    NoWhitespaceDelimiter,
+    #[error("Equals sign delimiter not found")]
+    NoEqualsDelimiter,
+    #[error("Comma delimiter not found")]
+    NoCommaDelimiter,
+    #[error("Closing double quote delimiter not found")]
+    NoQuoteDelimiter,
 }
 
 impl InfluxLine {
