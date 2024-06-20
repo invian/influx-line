@@ -98,6 +98,12 @@ mod tests {
         "super\\ co\\=\\,ol",
         TagParserTail::Tag("tag2=2 field=true")
     )]
+    #[case::unicode(
+        "he\\ just\\ 💀=fr💀,my=man",
+        "he\\ just\\ 💀",
+        "fr💀",
+        TagParserTail::Tag("my=man")
+    )]
     fn successful_tag_parsing(
         #[case] input: &str,
         #[case] expected_key: &str,

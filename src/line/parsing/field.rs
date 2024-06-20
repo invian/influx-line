@@ -208,6 +208,12 @@ mod tests {
         "in_the_end",
         FieldParserTail::Timestamp("")
     )]
+    #[case::unicode(
+        "he\\ just\\ 💀=fr💀,my=man",
+        "he\\ just\\ 💀",
+        "fr💀",
+        FieldParserTail::Field("my=man")
+    )]
     fn successful_field_parsing(
         #[case] input: &str,
         #[case] expected_key: &str,
