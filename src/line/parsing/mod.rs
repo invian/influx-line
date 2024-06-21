@@ -119,12 +119,12 @@ impl<'a> TryFrom<RawLine<'a>> for InfluxLine {
         let tags = value
             .tags
             .into_iter()
-            .map(|pair| <(KeyName, KeyName) as TryFrom<_>>::try_from(pair))
+            .map(<(KeyName, KeyName) as TryFrom<_>>::try_from)
             .collect::<Result<Vec<_>, _>>()?;
         let fields: Vec<_> = value
             .fields
             .into_iter()
-            .map(|pair| <(KeyName, InfluxValue) as TryFrom<_>>::try_from(pair))
+            .map(<(KeyName, InfluxValue) as TryFrom<_>>::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
         let timestamp = match value.timestamp {
