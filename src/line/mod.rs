@@ -91,16 +91,13 @@ impl InfluxLine {
         }
     }
 
-    pub fn try_new<M, K, V>(
-        measurement: M,
-        field: KeyName,
-        value: V,
-    ) -> Result<Self, InfluxLineError>
+    pub fn try_new<M, K, V>(measurement: M, field: K, value: V) -> Result<Self, InfluxLineError>
     where
         M: TryInto<MeasurementName, Error = InfluxLineError>,
+        K: TryInto<KeyName, Error = InfluxLineError>,
         V: Into<InfluxValue>,
     {
-        let fields = [(field, value.into())].into_iter().collect();
+        let fields = [(field.try_into()?, value.into())].into_iter().collect();
         Ok(Self {
             measurement: measurement.try_into()?,
             tags: KeyValueStorage::new(),
@@ -188,6 +185,15 @@ impl InfluxLine {
         self
     }
 
+    pub fn try_with_tag<K, V>(mut self, tag: K, value: V) -> Result<Self, InfluxLineError>
+    where
+        K: TryInto<KeyName, Error = InfluxLineError>,
+        V: TryInto<KeyName, Error = InfluxLineError>,
+    {
+        self.tags.put(tag.try_into()?, value.try_into()?);
+        Ok(self)
+    }
+
     /// # Examples
     ///
     /// ## At least one field is mandatory
@@ -229,6 +235,15 @@ impl InfluxLine {
         self.fields.put(field, value.into());
         self
     }
+
+    pub fn try_with_field<K, V>(mut self, field: K, value: V) -> Result<Self, InfluxLineError>
+    where
+        K: TryInto<KeyName, Error = InfluxLineError>,
+        V: Into<InfluxValue>,
+    {
+        self.fields.put(field.try_into()?, value.into());
+        Ok(self)
+    }
 }
 
 impl FromStr for InfluxLine {
@@ -244,101 +259,25 @@ impl FromStr for InfluxLine {
 mod tests {
     use std::str::FromStr;
 
-    use crate::{InfluxLine, InfluxValue, KeyName, MeasurementName, Timestamp};
-
-    use super::hash_like::KeyValuePair;
-
-    type TagPair = KeyValuePair<KeyName>;
-    type FieldPair = KeyValuePair<InfluxValue>;
-
-    #[rstest::fixture]
-    fn timestamp() -> Timestamp {
-        (1704067200000000000 as i64).into()
-    }
-
-    #[rstest::fixture]
-    fn human_measurement() -> MeasurementName {
-        "human"
-            .try_into()
-            .expect("Must be a valid measurement name")
-    }
-
-    #[rstest::fixture]
-    fn ru_language_tag() -> TagPair {
-        TagPair {
-            key: "language".try_into().expect("Must be a valid tag key"),
-            value: "ru".try_into().expect("Must be a valid tag value"),
-        }
-    }
-
-    #[rstest::fixture]
-    fn en_language_tag() -> TagPair {
-        TagPair {
-            key: "language".try_into().expect("Must be a valid tag key"),
-            value: "en".try_into().expect("Must be a valid tag value"),
-        }
-    }
-
-    #[rstest::fixture]
-    fn location_tag() -> TagPair {
-        TagPair {
-            key: "location".try_into().expect("Must be a valid tag key"),
-            value: "siberia".try_into().expect("Must be a valid tag value"),
-        }
-    }
-
-    #[rstest::fixture]
-    fn age_field() -> FieldPair {
-        FieldPair {
-            key: "age".try_into().expect("Must be a valid field key"),
-            value: (25 as u32).into(),
-        }
-    }
-
-    #[rstest::fixture]
-    fn epicness_field() -> FieldPair {
-        FieldPair {
-            key: "is epic".try_into().expect("Must be a valid field key"),
-            value: true.into(),
-        }
-    }
-
-    #[rstest::fixture]
-    fn balance_field() -> FieldPair {
-        FieldPair {
-            key: "balance".try_into().expect("Must be a valid field key"),
-            value: (-15.57).into(),
-        }
-    }
-
-    #[rstest::fixture]
-    fn name_field() -> FieldPair {
-        FieldPair {
-            key: "name".try_into().expect("Must be a valid field key"),
-            value: "Egorka".into(),
-        }
-    }
+    use crate::{InfluxLine, Timestamp};
 
     #[rstest::rstest]
-    fn successful_full_line_parsing(
-        human_measurement: MeasurementName,
-        ru_language_tag: TagPair,
-        location_tag: TagPair,
-        age_field: FieldPair,
-        epicness_field: FieldPair,
-        balance_field: FieldPair,
-        name_field: FieldPair,
-        timestamp: Timestamp,
-    ) {
-        let input = "human,language=ru,location=siberia age=25u,is\\ epic=true,balance=-15.57,name=\"Egorka\" 1704067200000000000";
-        let expected_line = InfluxLine::new(human_measurement, age_field.key, age_field.value)
-            .with_field(epicness_field.key, epicness_field.value)
-            .with_field(balance_field.key, balance_field.value)
-            .with_field(name_field.key, name_field.value)
-            .with_tag(ru_language_tag.key, ru_language_tag.value)
-            .with_tag(location_tag.key, location_tag.value)
-            .with_timestamp(timestamp);
-
+    #[case::minimal(
+        "measurement field1=228u",
+        InfluxLine::try_new("measurement", "field1", 228 as u32).unwrap()
+    )]
+    #[case::full(
+        "human,language=ru,location=siberia age=25u,is\\ epic=true,balance=-15.57,name=\"Egorka\" 1704067200000000000",
+        InfluxLine::try_new("human", "age", 25 as u32)
+            .and_then(|l| l.try_with_field("is epic", true))
+            .and_then(|l| l.try_with_field("balance", -15.57))
+            .and_then(|l| l.try_with_field("name", "Egorka"))
+            .and_then(|l| l.try_with_tag("language", "ru"))
+            .and_then(|l| l.try_with_tag("location", "siberia"))
+            .map(|l| l.with_timestamp(Timestamp::from(1704067200000000000 as i64)))
+            .unwrap()
+    )]
+    fn successful_line_parsing(#[case] input: &str, #[case] expected_line: InfluxLine) {
         let actual_line = InfluxLine::from_str(input).expect("Must parse here");
 
         assert_eq!(expected_line, actual_line);
