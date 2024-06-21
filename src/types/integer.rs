@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use crate::line::InfluxLineError;
+
 #[derive(
     Debug,
     Clone,
@@ -33,47 +35,39 @@ pub struct InfluxInteger(i64);
 #[display(fmt = "{}u", _0)]
 pub struct InfluxUInteger(u64);
 
-#[derive(Debug, thiserror::Error)]
-pub enum NumberParseError {
-    #[error("Wrong format: {0}")]
-    Malformed(String),
-    #[error("Failed to parse number: {0}")]
-    Failed(String),
-}
-
 impl FromStr for InfluxInteger {
-    type Err = NumberParseError;
+    type Err = InfluxLineError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let Some((int_slice, empty)) = s.split_once('i') else {
-            return Err(NumberParseError::Malformed(s.into()));
+            return Err(InfluxLineError::IntegerNotParsed);
         };
         if !empty.is_empty() {
-            return Err(NumberParseError::Malformed(s.into()));
+            return Err(InfluxLineError::IntegerNotParsed);
         }
 
         let integer = int_slice
             .parse::<i64>()
-            .map_err(|_| NumberParseError::Failed(int_slice.into()))?;
+            .map_err(|_| InfluxLineError::IntegerNotParsed)?;
 
         Ok(Self(integer))
     }
 }
 
 impl FromStr for InfluxUInteger {
-    type Err = NumberParseError;
+    type Err = InfluxLineError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let Some((uint_slice, empty)) = s.split_once('u') else {
-            return Err(NumberParseError::Malformed(s.into()));
+            return Err(InfluxLineError::UIntegerNotParsed);
         };
         if !empty.is_empty() {
-            return Err(NumberParseError::Malformed(s.into()));
+            return Err(InfluxLineError::UIntegerNotParsed);
         }
 
         let uinteger = uint_slice
             .parse::<u64>()
-            .map_err(|_| NumberParseError::Failed(uint_slice.into()))?;
+            .map_err(|_| InfluxLineError::UIntegerNotParsed)?;
 
         Ok(Self(uinteger))
     }

@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use crate::line::InfluxLineError;
+
 /// Represents a Boolean value
 /// with the following representations in Line Protocol
 ///
@@ -22,18 +24,14 @@ use std::str::FromStr;
 )]
 pub struct Boolean(bool);
 
-#[derive(Debug, thiserror::Error)]
-#[error("Failed to parse value as Boolean")]
-pub struct BooleanParseError;
-
 impl FromStr for Boolean {
-    type Err = BooleanParseError;
+    type Err = InfluxLineError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "t" | "T" | "true" | "True" | "TRUE" => Ok(Boolean(true)),
             "f" | "F" | "false" | "False" | "FALSE" => Ok(Boolean(false)),
-            _ => Err(BooleanParseError),
+            _ => Err(InfluxLineError::BooleanNotParsed),
         }
     }
 }

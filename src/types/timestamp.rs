@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 
+use crate::line::InfluxLineError;
+
 /// Represents a Timestamp (in nanoseconds) at the end of the Line Protocol.
 #[derive(
     Debug,
@@ -19,10 +21,6 @@ use chrono::{DateTime, Utc};
 #[from(types(u8, u16, u32, i8, i16, i32))]
 pub struct Timestamp(i64);
 
-#[derive(Debug, thiserror::Error)]
-#[error("`{0}` is not a valid timestamp: {1}")]
-pub struct TimestampParseError(String, std::num::ParseIntError);
-
 impl From<Timestamp> for DateTime<Utc> {
     fn from(value: Timestamp) -> Self {
         DateTime::from_timestamp_nanos(value.into()).to_utc()
@@ -30,12 +28,12 @@ impl From<Timestamp> for DateTime<Utc> {
 }
 
 impl FromStr for Timestamp {
-    type Err = TimestampParseError;
+    type Err = InfluxLineError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let timestamp = s
             .parse::<i64>()
-            .map_err(|parse_int_error| TimestampParseError(s.into(), parse_int_error))?;
+            .map_err(|_| InfluxLineError::TimestampNotParsed)?;
         Ok(Self(timestamp))
     }
 }

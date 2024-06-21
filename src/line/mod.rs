@@ -1,8 +1,11 @@
 mod hash_like;
 mod parsing;
 
+use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
 use hash_like::KeyValueStorage;
+use parsing::LinearLineParser;
 
 use crate::{InfluxValue, KeyName, MeasurementName};
 
@@ -45,9 +48,36 @@ pub enum InfluxLineError {
     NoQuoteDelimiter,
     #[error("Naming restriction was not met")]
     NameRestriction,
+    #[error("Failed to parse key")]
+    KeyNotParsed,
+    #[error("Failed to parse Integer value")]
+    IntegerNotParsed,
+    #[error("Failed to parse UInteger value")]
+    UIntegerNotParsed,
+    #[error("Failed to parse Boolean value")]
+    BooleanNotParsed,
+    #[error("Failed to parse timestamp")]
+    TimestampNotParsed,
 }
 
 impl InfluxLine {
+    pub fn full<DT>(
+        measurement: MeasurementName,
+        tags: impl IntoIterator<Item = (KeyName, KeyName)>,
+        fields: impl IntoIterator<Item = (KeyName, InfluxValue)>,
+        timestamp: Option<DT>,
+    ) -> Self
+    where
+        DT: Into<DateTime<Utc>>,
+    {
+        Self {
+            measurement,
+            tags: tags.into_iter().collect(),
+            fields: fields.into_iter().collect(),
+            timestamp: timestamp.map(|ts| ts.into()),
+        }
+    }
+
     pub fn new<V>(measurement: MeasurementName, field: KeyName, value: V) -> Self
     where
         V: Into<InfluxValue>,
@@ -198,5 +228,119 @@ impl InfluxLine {
     {
         self.fields.put(field, value.into());
         self
+    }
+}
+
+impl FromStr for InfluxLine {
+    type Err = InfluxLineError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let raw_line = LinearLineParser.process(s)?;
+        raw_line.try_into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use crate::{InfluxLine, InfluxValue, KeyName, MeasurementName, Timestamp};
+
+    use super::hash_like::KeyValuePair;
+
+    type TagPair = KeyValuePair<KeyName>;
+    type FieldPair = KeyValuePair<InfluxValue>;
+
+    #[rstest::fixture]
+    fn timestamp() -> Timestamp {
+        (1704067200000000000 as i64).into()
+    }
+
+    #[rstest::fixture]
+    fn human_measurement() -> MeasurementName {
+        "human"
+            .try_into()
+            .expect("Must be a valid measurement name")
+    }
+
+    #[rstest::fixture]
+    fn ru_language_tag() -> TagPair {
+        TagPair {
+            key: "language".try_into().expect("Must be a valid tag key"),
+            value: "ru".try_into().expect("Must be a valid tag value"),
+        }
+    }
+
+    #[rstest::fixture]
+    fn en_language_tag() -> TagPair {
+        TagPair {
+            key: "language".try_into().expect("Must be a valid tag key"),
+            value: "en".try_into().expect("Must be a valid tag value"),
+        }
+    }
+
+    #[rstest::fixture]
+    fn location_tag() -> TagPair {
+        TagPair {
+            key: "location".try_into().expect("Must be a valid tag key"),
+            value: "siberia".try_into().expect("Must be a valid tag value"),
+        }
+    }
+
+    #[rstest::fixture]
+    fn age_field() -> FieldPair {
+        FieldPair {
+            key: "age".try_into().expect("Must be a valid field key"),
+            value: (25 as u32).into(),
+        }
+    }
+
+    #[rstest::fixture]
+    fn epicness_field() -> FieldPair {
+        FieldPair {
+            key: "is epic".try_into().expect("Must be a valid field key"),
+            value: true.into(),
+        }
+    }
+
+    #[rstest::fixture]
+    fn balance_field() -> FieldPair {
+        FieldPair {
+            key: "balance".try_into().expect("Must be a valid field key"),
+            value: (-15.57).into(),
+        }
+    }
+
+    #[rstest::fixture]
+    fn name_field() -> FieldPair {
+        FieldPair {
+            key: "name".try_into().expect("Must be a valid field key"),
+            value: "Egorka".into(),
+        }
+    }
+
+    #[rstest::rstest]
+    fn successful_full_line_parsing(
+        human_measurement: MeasurementName,
+        ru_language_tag: TagPair,
+        location_tag: TagPair,
+        age_field: FieldPair,
+        epicness_field: FieldPair,
+        balance_field: FieldPair,
+        name_field: FieldPair,
+        timestamp: Timestamp,
+    ) {
+        let input = "human,language=ru,location=siberia age=25u,is\\ epic=true,balance=-15.57,name=\"Egorka\" 1704067200000000000";
+        let expected_line = InfluxLine::new(human_measurement, age_field.key, age_field.value)
+            .with_field(epicness_field.key, epicness_field.value)
+            .with_field(balance_field.key, balance_field.value)
+            .with_field(name_field.key, name_field.value)
+            .with_tag(ru_language_tag.key, ru_language_tag.value)
+            .with_tag(location_tag.key, location_tag.value)
+            .with_timestamp(timestamp);
+
+        let actual_line = InfluxLine::from_str(input).expect("Must parse here");
+
+        assert_eq!(expected_line, actual_line);
     }
 }

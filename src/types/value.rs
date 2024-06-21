@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{Boolean, InfluxInteger, InfluxUInteger, QuotedString};
+use crate::{line::InfluxLineError, Boolean, InfluxInteger, InfluxUInteger, QuotedString};
 
 #[derive(Debug, Clone, PartialEq, derive_more::From, derive_more::Display)]
 pub enum InfluxValue {
@@ -17,10 +17,6 @@ pub enum InfluxValue {
     String(QuotedString),
 }
 
-#[derive(Debug, thiserror::Error)]
-#[error("Failed to parse string as valid Influx Value")]
-pub struct InfluxValueParseError;
-
 impl From<&str> for InfluxValue {
     fn from(value: &str) -> Self {
         Self::String(value.into())
@@ -28,7 +24,7 @@ impl From<&str> for InfluxValue {
 }
 
 impl FromStr for InfluxValue {
-    type Err = InfluxValueParseError;
+    type Err = InfluxLineError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(float) = s.parse::<f64>() {
@@ -51,7 +47,7 @@ impl FromStr for InfluxValue {
             return Ok(quoted_string.into());
         }
 
-        Err(InfluxValueParseError)
+        Err(InfluxLineError::Failed)
     }
 }
 

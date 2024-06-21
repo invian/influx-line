@@ -3,9 +3,13 @@ mod key;
 mod measurement;
 mod tag;
 
+use std::str::FromStr;
+
 use field::FieldParser;
 use measurement::{MeasurementParser, MeasurementTail};
 use tag::{TagParser, TagParserTail};
+
+use crate::{InfluxLine, InfluxValue, KeyName, MeasurementName, Timestamp};
 
 use super::InfluxLineError;
 
@@ -103,5 +107,50 @@ impl LinearLineParser {
         };
 
         Ok((pairs, timestamp_opt))
+    }
+}
+
+impl<'a> TryFrom<RawLine<'a>> for InfluxLine {
+    type Error = InfluxLineError;
+
+    fn try_from(value: RawLine<'a>) -> Result<Self, Self::Error> {
+        let measurement = MeasurementName::from_str(value.measurement)?;
+
+        let tags = value
+            .tags
+            .into_iter()
+            .map(|pair| <(KeyName, KeyName) as TryFrom<_>>::try_from(pair))
+            .collect::<Result<Vec<_>, _>>()?;
+        let fields: Vec<_> = value
+            .fields
+            .into_iter()
+            .map(|pair| <(KeyName, InfluxValue) as TryFrom<_>>::try_from(pair))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let timestamp = match value.timestamp {
+            Some(ts) => Some(Timestamp::from_str(ts)?),
+            None => None,
+        };
+
+        Ok(InfluxLine::full(measurement, tags, fields, timestamp))
+    }
+}
+
+impl<'a> TryFrom<RawKeyValuePair<'a>> for (KeyName, KeyName) {
+    type Error = InfluxLineError;
+
+    fn try_from(pair: RawKeyValuePair<'a>) -> Result<Self, Self::Error> {
+        Ok((KeyName::from_str(pair.key)?, KeyName::from_str(pair.value)?))
+    }
+}
+
+impl<'a> TryFrom<RawKeyValuePair<'a>> for (KeyName, InfluxValue) {
+    type Error = InfluxLineError;
+
+    fn try_from(pair: RawKeyValuePair<'a>) -> Result<Self, Self::Error> {
+        Ok((
+            KeyName::from_str(pair.key)?,
+            InfluxValue::from_str(pair.value)?,
+        ))
     }
 }
