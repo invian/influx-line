@@ -4,7 +4,7 @@ mod parsing;
 use chrono::{DateTime, Utc};
 use hash_like::KeyValueStorage;
 
-use crate::{InfluxValue, KeyName, MeasurementName, NameRestrictionError};
+use crate::{InfluxValue, KeyName, MeasurementName};
 
 /// Implements InfluxDB Line Protocol V2.
 ///
@@ -43,6 +43,8 @@ pub enum InfluxLineError {
     NoCommaDelimiter,
     #[error("Closing double quote delimiter not found")]
     NoQuoteDelimiter,
+    #[error("Naming restriction was not met")]
+    NameRestriction,
 }
 
 impl InfluxLine {
@@ -63,9 +65,9 @@ impl InfluxLine {
         measurement: M,
         field: KeyName,
         value: V,
-    ) -> Result<Self, NameRestrictionError>
+    ) -> Result<Self, InfluxLineError>
     where
-        M: TryInto<MeasurementName, Error = NameRestrictionError>,
+        M: TryInto<MeasurementName, Error = InfluxLineError>,
         V: Into<InfluxValue>,
     {
         let fields = [(field, value.into())].into_iter().collect();

@@ -1,3 +1,5 @@
+use crate::line::InfluxLineError;
+
 #[derive(Debug, Clone)]
 pub(super) struct LinearParser<'a> {
     buffer: Vec<char>,
@@ -5,18 +7,6 @@ pub(super) struct LinearParser<'a> {
     stray_escapes: StrayEscapes,
     special_characters: &'a [char],
     escape_character: &'a char,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ParseError {
-    #[error("Failed to parse name")]
-    Failed,
-    #[error("Special character is not escaped")]
-    SpecialCharacterNotEscaped,
-    #[error("An escape character does not escape any special symbols")]
-    StrayEscapeCharacter,
-    #[error("Unable to process name with a trailing escape character")]
-    TrailingEscapeCharacter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,7 +45,7 @@ impl<'a> LinearParser<'a> {
         }
     }
 
-    pub fn process_char(&mut self, character: char) -> Result<(), ParseError> {
+    pub fn process_char(&mut self, character: char) -> Result<(), InfluxLineError> {
         match (self.escaped, self.character_type(character)) {
             (EscapedBefore::Yes, CharacterType::Normal) => {
                 if self.stray_escapes == StrayEscapes::Allow {
@@ -63,7 +53,7 @@ impl<'a> LinearParser<'a> {
                     self.buffer.push(character);
                     self.escaped = EscapedBefore::No;
                 } else {
-                    return Err(ParseError::StrayEscapeCharacter);
+                    return Err(InfluxLineError::UnexpectedEscapeSymbol);
                 }
             }
             (EscapedBefore::Yes, _) => {
@@ -74,7 +64,7 @@ impl<'a> LinearParser<'a> {
                 self.buffer.push(character);
             }
             (EscapedBefore::No, CharacterType::Special) => {
-                return Err(ParseError::SpecialCharacterNotEscaped);
+                return Err(InfluxLineError::UnescapedSpecialCharacter);
             }
             (EscapedBefore::No, CharacterType::Escape) => {
                 self.escaped = EscapedBefore::Yes;
@@ -83,9 +73,9 @@ impl<'a> LinearParser<'a> {
         Ok(())
     }
 
-    pub fn extract(self) -> Result<String, ParseError> {
+    pub fn extract(self) -> Result<String, InfluxLineError> {
         if self.escaped == EscapedBefore::Yes {
-            return Err(ParseError::TrailingEscapeCharacter);
+            return Err(InfluxLineError::UnexpectedEscapeSymbol);
         }
 
         Ok(self.buffer.into_iter().collect())

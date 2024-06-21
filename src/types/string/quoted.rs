@@ -1,10 +1,9 @@
 use std::fmt::Display;
 use std::str::FromStr;
 
-use crate::types::string::formatter::LinearFormatter;
+use crate::{line::InfluxLineError, types::string::formatter::LinearFormatter};
 
 use super::parser::{LinearParser, StrayEscapes};
-use super::ParseError;
 
 #[derive(
     Debug,
@@ -51,17 +50,17 @@ impl AsRef<str> for QuotedString {
 }
 
 impl FromStr for QuotedString {
-    type Err = ParseError;
+    type Err = InfluxLineError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let Some(first_quote) = s.chars().nth(0) else {
-            return Err(ParseError::Failed);
+            return Err(InfluxLineError::NoQuoteDelimiter);
         };
         let Some(last_quote) = s.chars().last() else {
-            return Err(ParseError::Failed);
+            return Err(InfluxLineError::NoQuoteDelimiter);
         };
         if s.len() < 2 || first_quote != '"' || last_quote != '"' {
-            return Err(ParseError::Failed);
+            return Err(InfluxLineError::NoQuoteDelimiter);
         };
 
         let mut parser = LinearParser::new(

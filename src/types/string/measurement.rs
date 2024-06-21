@@ -1,12 +1,10 @@
 use std::fmt::Display;
 use std::str::FromStr;
 
+use crate::line::InfluxLineError;
 use crate::types::string::formatter::LinearFormatter;
 
-use super::{
-    parser::{LinearParser, StrayEscapes},
-    NameRestrictionError, ParseError,
-};
+use super::parser::{LinearParser, StrayEscapes};
 
 /// Represents a measurement name,
 /// and takes into account its [Naming restrictions](
@@ -81,24 +79,16 @@ use super::{
 )]
 pub struct MeasurementName(String);
 
-#[derive(Debug, thiserror::Error)]
-pub enum MeasurementNameParseError {
-    #[error(transparent)]
-    Parse(#[from] ParseError),
-    #[error(transparent)]
-    Restristion(#[from] NameRestrictionError),
-}
-
 impl MeasurementName {
     const SPECIAL_CHARACTERS: [char; 2] = [',', ' '];
     const ESCAPE_CHARACTER: char = '\\';
 
-    pub fn new<S>(name: S) -> Result<Self, NameRestrictionError>
+    pub fn new<S>(name: S) -> Result<Self, InfluxLineError>
     where
         S: AsRef<str> + Into<String>,
     {
         if name.as_ref().is_empty() || name.as_ref().starts_with('_') {
-            return Err(NameRestrictionError);
+            return Err(InfluxLineError::NameRestriction);
         }
 
         Ok(Self(name.into()))
@@ -106,7 +96,7 @@ impl MeasurementName {
 }
 
 impl TryFrom<String> for MeasurementName {
-    type Error = NameRestrictionError;
+    type Error = InfluxLineError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::new(value)
@@ -114,7 +104,7 @@ impl TryFrom<String> for MeasurementName {
 }
 
 impl TryFrom<&str> for MeasurementName {
-    type Error = NameRestrictionError;
+    type Error = InfluxLineError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Self::new(value)
@@ -128,7 +118,7 @@ impl AsRef<str> for MeasurementName {
 }
 
 impl FromStr for MeasurementName {
-    type Err = MeasurementNameParseError;
+    type Err = InfluxLineError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parser = LinearParser::new(
