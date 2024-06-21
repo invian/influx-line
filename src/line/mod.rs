@@ -282,4 +282,15 @@ mod tests {
 
         assert_eq!(expected_line, actual_line);
     }
+
+    #[rstest::rstest]
+    #[case::empty("")]
+    #[case::no_fields("measurement,tag1=tag1,tag2=tag2")]
+    #[case::no_fields_but_yes_timestamp("measurement,tag1=tag1,tag2=tag2 123456789")]
+    #[case::no_escape("measure ment,tag1=tag1,tag2=tag2 field1=1.0 12345")]
+    #[case::bad_field_value("measurement,tag1=tag1,tag2=tag2 field1=not\\ a\\ string 12345")]
+    #[case::bad_timestamp("measurement field1=1.00 timestamp_here")]
+    fn line_parsing_error(#[case] input: &str) {
+        let _parse_error = InfluxLine::from_str(input).expect_err("Must fail here");
+    }
 }
