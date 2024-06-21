@@ -17,10 +17,7 @@ pub enum TagParserTail<'a> {
 }
 
 impl TagParser {
-    pub fn process<'a>(
-        self,
-        line: &'a str,
-    ) -> Result<(RawKeyValuePair<'a>, TagParserTail<'a>), InfluxLineError> {
+    pub fn process(self, line: &str) -> Result<(RawKeyValuePair, TagParserTail), InfluxLineError> {
         let (key, value_tail) = KeyParser::new().process(line)?;
         let (value, tail) = TagValueParser::new().process(value_tail)?;
         let pair = RawKeyValuePair { key, value };
@@ -35,15 +32,10 @@ impl TagValueParser {
         }
     }
 
-    pub fn process<'a>(
-        mut self,
-        line: &'a str,
-    ) -> Result<(&'a str, TagParserTail<'a>), InfluxLineError> {
+    pub fn process(mut self, line: &str) -> Result<(&str, TagParserTail), InfluxLineError> {
         for (index, character) in line.char_indices() {
             match (self.escaped, character) {
-                (Escaped::No, ',' | ' ') if index == 0 => {
-                    return Err(InfluxLineError::NoValue)
-                }
+                (Escaped::No, ',' | ' ') if index == 0 => return Err(InfluxLineError::NoValue),
                 (Escaped::No, ',') => {
                     let (value, tail) = exclusive_split_at(line, index);
                     return Ok((value, TagParserTail::Tag(tail)));
