@@ -7,7 +7,7 @@ use field::FieldParser;
 use measurement::{MeasurementParser, MeasurementTail};
 use tag::{TagParser, TagParserTail};
 
-use super::InfluxLineParseError;
+use super::InfluxLineError;
 
 /// Since the core lib's `split_at` is inclusive,
 /// i.e., it keeps the delimiter at `index` in the second slice,
@@ -21,7 +21,7 @@ fn exclusive_split_at(s: &str, index: usize) -> (&str, &str) {
 }
 
 #[derive(Debug)]
-pub struct LinearLineParser {}
+pub struct LinearLineParser;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawLine<'a> {
@@ -44,11 +44,7 @@ enum Escaped {
 }
 
 impl LinearLineParser {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    pub fn process<'a>(self, line: &'a str) -> Result<RawLine<'a>, InfluxLineParseError> {
+    pub fn process<'a>(self, line: &'a str) -> Result<RawLine<'a>, InfluxLineError> {
         let (measurement, measurement_tail) = MeasurementParser::new().process(line)?;
 
         let (tags, fields_tail) = match measurement_tail {
@@ -69,7 +65,7 @@ impl LinearLineParser {
     fn parse_tags<'a>(
         &self,
         line: &'a str,
-    ) -> Result<(Vec<RawKeyValuePair<'a>>, &'a str), InfluxLineParseError> {
+    ) -> Result<(Vec<RawKeyValuePair<'a>>, &'a str), InfluxLineError> {
         let mut pairs = Vec::new();
         let mut tail = line;
 
@@ -90,7 +86,7 @@ impl LinearLineParser {
     fn parse_fields<'a>(
         &self,
         line: &'a str,
-    ) -> Result<(Vec<RawKeyValuePair<'a>>, Option<&'a str>), InfluxLineParseError> {
+    ) -> Result<(Vec<RawKeyValuePair<'a>>, Option<&'a str>), InfluxLineError> {
         let mut pairs = Vec::new();
         let mut tail = line;
 

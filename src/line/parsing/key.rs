@@ -1,4 +1,4 @@
-use crate::line::InfluxLineParseError;
+use crate::line::InfluxLineError;
 
 use super::{exclusive_split_at, Escaped};
 
@@ -14,17 +14,14 @@ impl KeyParser {
         }
     }
 
-    pub fn process<'a>(
-        mut self,
-        line: &'a str,
-    ) -> Result<(&'a str, &'a str), InfluxLineParseError> {
+    pub fn process<'a>(mut self, line: &'a str) -> Result<(&'a str, &'a str), InfluxLineError> {
         for (index, character) in line.char_indices() {
             match (self.escaped, character) {
                 (Escaped::No, '\\') => {
                     self.escaped = Escaped::Yes;
                 }
                 (Escaped::No, ' ' | ',') => {
-                    return Err(InfluxLineParseError::UnescapedSpecialCharacter);
+                    return Err(InfluxLineError::UnescapedSpecialCharacter);
                 }
                 (Escaped::No, '=') => {
                     return Ok(exclusive_split_at(line, index));
@@ -36,6 +33,6 @@ impl KeyParser {
             }
         }
 
-        Err(InfluxLineParseError::NoValue)
+        Err(InfluxLineError::NoValue)
     }
 }

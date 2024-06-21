@@ -1,4 +1,4 @@
-use crate::line::InfluxLineParseError;
+use crate::line::InfluxLineError;
 
 use super::{exclusive_split_at, key::KeyParser, Escaped, RawKeyValuePair};
 
@@ -41,7 +41,7 @@ impl FieldParser {
     pub fn process<'a>(
         &self,
         line: &'a str,
-    ) -> Result<(RawKeyValuePair<'a>, FieldParserTail<'a>), InfluxLineParseError> {
+    ) -> Result<(RawKeyValuePair<'a>, FieldParserTail<'a>), InfluxLineError> {
         let (key, value_tail) = KeyParser::new().process(line)?;
         let (value, tail) = FieldValueParser.process(value_tail)?;
         let pair = RawKeyValuePair { key, value };
@@ -53,11 +53,11 @@ impl FieldValueParser {
     pub fn process<'a>(
         &self,
         line: &'a str,
-    ) -> Result<(&'a str, FieldParserTail<'a>), InfluxLineParseError> {
+    ) -> Result<(&'a str, FieldParserTail<'a>), InfluxLineError> {
         match line.chars().nth(0) {
             Some('"') => StringValueParser::new().process(line),
             Some(_) => SimpleValueParser.process(line),
-            None => Err(InfluxLineParseError::NoValue),
+            None => Err(InfluxLineError::NoValue),
         }
     }
 }
@@ -66,11 +66,11 @@ impl SimpleValueParser {
     pub fn process<'a>(
         self,
         line: &'a str,
-    ) -> Result<(&'a str, FieldParserTail<'a>), InfluxLineParseError> {
+    ) -> Result<(&'a str, FieldParserTail<'a>), InfluxLineError> {
         for (index, character) in line.char_indices() {
             match character {
-                '\\' => return Err(InfluxLineParseError::UnexpectedEscapeSymbol),
-                ' ' | ',' if index == 0 => return Err(InfluxLineParseError::NoValue),
+                '\\' => return Err(InfluxLineError::UnexpectedEscapeSymbol),
+                ' ' | ',' if index == 0 => return Err(InfluxLineError::NoValue),
                 ' ' => {
                     let (value, tail) = exclusive_split_at(line, index);
                     return Ok((value, FieldParserTail::Timestamp(tail)));
@@ -98,7 +98,7 @@ impl StringValueParser {
     pub fn process<'a>(
         mut self,
         line: &'a str,
-    ) -> Result<(&'a str, FieldParserTail<'a>), InfluxLineParseError> {
+    ) -> Result<(&'a str, FieldParserTail<'a>), InfluxLineError> {
         for (index, character) in line.char_indices() {
             match self.consume_char(character)? {
                 Some(Transition::ToNextField) => {
@@ -115,22 +115,19 @@ impl StringValueParser {
 
         match self.state {
             ParserState::StringRightQuote => Ok((line, FieldParserTail::None)),
-            ParserState::Start => Err(InfluxLineParseError::Failed),
-            ParserState::StringLeftQuote => Err(InfluxLineParseError::NoQuoteDelimiter),
-            ParserState::StringContent => Err(InfluxLineParseError::NoQuoteDelimiter),
+            ParserState::Start => Err(InfluxLineError::Failed),
+            ParserState::StringLeftQuote => Err(InfluxLineError::NoQuoteDelimiter),
+            ParserState::StringContent => Err(InfluxLineError::NoQuoteDelimiter),
         }
     }
 
-    pub fn consume_char(
-        &mut self,
-        character: char,
-    ) -> Result<Option<Transition>, InfluxLineParseError> {
+    pub fn consume_char(&mut self, character: char) -> Result<Option<Transition>, InfluxLineError> {
         match (self.state, self.escaped, character) {
             (ParserState::Start, _, '"') => {
                 self.state = ParserState::StringLeftQuote;
                 Ok(None)
             }
-            (ParserState::Start, _, _) => Err(InfluxLineParseError::NoQuoteDelimiter),
+            (ParserState::Start, _, _) => Err(InfluxLineError::NoQuoteDelimiter),
             (ParserState::StringLeftQuote, _, '"') => {
                 self.state = ParserState::StringRightQuote;
                 Ok(None)
@@ -156,11 +153,11 @@ impl StringValueParser {
                 Ok(None)
             }
             (ParserState::StringContent, Escaped::Yes, _) => {
-                Err(InfluxLineParseError::UnexpectedEscapeSymbol)
+                Err(InfluxLineError::UnexpectedEscapeSymbol)
             }
             (ParserState::StringRightQuote, _, ',') => Ok(Some(Transition::ToNextField)),
             (ParserState::StringRightQuote, _, ' ') => Ok(Some(Transition::ToTimestamp)),
-            (ParserState::StringRightQuote, _, _) => Err(InfluxLineParseError::Failed),
+            (ParserState::StringRightQuote, _, _) => Err(InfluxLineError::Failed),
         }
     }
 }

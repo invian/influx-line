@@ -1,4 +1,4 @@
-use crate::line::InfluxLineParseError;
+use crate::line::InfluxLineError;
 
 use super::{exclusive_split_at, Escaped};
 
@@ -23,11 +23,11 @@ impl MeasurementParser {
     pub fn process<'a>(
         mut self,
         line: &'a str,
-    ) -> Result<(&'a str, MeasurementTail<'a>), InfluxLineParseError> {
+    ) -> Result<(&'a str, MeasurementTail<'a>), InfluxLineError> {
         for (index, character) in line.char_indices() {
             match (self.escaped, character) {
                 (Escaped::No, ',' | ' ') if index == 0 => {
-                    return Err(InfluxLineParseError::NoMeasurement);
+                    return Err(InfluxLineError::NoMeasurement);
                 }
                 (Escaped::No, ',') => {
                     let (measurement, tail) = exclusive_split_at(line, index);
@@ -48,6 +48,6 @@ impl MeasurementParser {
             }
         }
 
-        Err(InfluxLineParseError::NoWhitespaceDelimiter)
+        Err(InfluxLineError::NoWhitespaceDelimiter)
     }
 }

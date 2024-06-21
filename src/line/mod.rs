@@ -22,7 +22,7 @@ pub struct InfluxLine {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum InfluxLineParseError {
+pub enum InfluxLineError {
     #[error("Failed to parse special character")]
     Failed,
     #[error("No value found")]
