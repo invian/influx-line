@@ -56,7 +56,9 @@ impl LinearLineParser {
             MeasurementTail::Fields(fields_tail) => (Vec::new(), fields_tail),
         };
 
-        let (fields, timestamp) = self.parse_fields(fields_tail)?;
+        let (fields, timestamp_tail) = self.parse_fields(fields_tail)?;
+
+        let timestamp = self.parse_timestamp(timestamp_tail)?;
 
         Ok(RawLine {
             measurement,
@@ -107,6 +109,25 @@ impl LinearLineParser {
         };
 
         Ok((pairs, timestamp_opt))
+    }
+
+    fn parse_timestamp<'a>(
+        &self,
+        line: Option<&'a str>,
+    ) -> Result<Option<&'a str>, InfluxLineError> {
+        let Some(tail) = line else {
+            return Ok(None);
+        };
+        match tail.split_once('\n') {
+            Some((timestamp, empty_tail)) => {
+                if empty_tail.is_empty() {
+                    Ok(Some(timestamp))
+                } else {
+                    Err(InfluxLineError::CharactersAfterLineEnd)
+                }
+            }
+            None => Ok(Some(tail)),
+        }
     }
 }
 

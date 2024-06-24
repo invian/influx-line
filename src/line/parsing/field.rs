@@ -76,6 +76,10 @@ impl SimpleValueParser {
                     let (value, tail) = exclusive_split_at(line, index);
                     return Ok((value, FieldParserTail::Field(tail)));
                 }
+                '\n' => {
+                    let (value, _) = exclusive_split_at(line, index);
+                    return Ok((value, FieldParserTail::None));
+                }
                 _ => (),
             }
         }

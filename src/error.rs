@@ -34,4 +34,6 @@ pub enum InfluxLineError {
     BadValue,
     #[error("Timestamp not constructed: DateTime out of range")]
     DateTimeOutOfRange,
+    #[error("Newline at the end of line is followed by more characters")]
+    CharactersAfterLineEnd,
 }
