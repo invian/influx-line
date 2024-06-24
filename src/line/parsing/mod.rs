@@ -132,7 +132,7 @@ impl<'a> TryFrom<RawLine<'a>> for InfluxLine {
             None => None,
         };
 
-        Ok(InfluxLine::full(measurement, tags, fields, timestamp))
+        InfluxLine::full(measurement, tags, fields, timestamp)
     }
 }
 

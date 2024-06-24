@@ -3,36 +3,47 @@ mod parsing;
 
 use std::{fmt::Display, str::FromStr};
 
-use chrono::{DateTime, Utc};
 use hash_like::KeyValueStorage;
 use parsing::LinearLineParser;
 
 use crate::{InfluxValue, KeyName, MeasurementName, Timestamp};
 
-/// Implements InfluxDB Line Protocol V2.
+/// Implements InfluxDB Line Protocol V2
+/// described [here](https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/).
 ///
-/// Described [here](https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/).
+/// A minimal possible Line can be constructed via [`Self::new`] / [`Self::try_new`].
+/// Other builder methods can add extra tags/fields and timestamp:
+///
+/// - [`Self::with_tag`] / [`Self::try_with_tag`]
+/// - [`Self::with_field`] / [`Self::try_with_field`]
+/// - [`Self::with_timestamp`] / [`Self::try_with_timestamp`]
+///
+/// Additionally, [`std::str::FromStr`] and [`std::fmt::Display`] implementations
+/// allow for parsing and formatting the Line
+/// as per Line Protocol described in the InfluxDB docs.
+/// Escaping is done automatically under the hood,
+/// so that consumers can work with raw values with comfort and style.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InfluxLine {
-    /// Required measurement name.
     measurement: MeasurementName,
     /// The original name `Tag Set` is not adapted for simplicity.
     tags: KeyValueStorage<KeyName>,
     /// The original name `Field Set` is not adapted for simplicity.
     fields: KeyValueStorage<InfluxValue>,
-    /// [`DateTime`] sounds more readable for a timestamp.
     timestamp: Option<Timestamp>,
 }
 
+/// A library level error that occurs when any failure occurs,
+/// such as parse error, or invalid input in constructors or conversion traits.
 #[derive(Debug, thiserror::Error)]
 pub enum InfluxLineError {
-    #[error("Failed to parse special character")]
+    #[error("Failed to process input")]
     Failed,
     #[error("No value found")]
     NoValue,
-    #[error("Failed to find measurement")]
+    #[error("No measurement found")]
     NoMeasurement,
-    #[error("Failed to find fields set")]
+    #[error("No fields found")]
     NoFields,
     #[error("Unexpected escape symbol")]
     UnexpectedEscapeSymbol,
@@ -40,16 +51,10 @@ pub enum InfluxLineError {
     UnescapedSpecialCharacter,
     #[error("Space delimiter not found")]
     NoWhitespaceDelimiter,
-    #[error("Equals sign delimiter not found")]
-    NoEqualsDelimiter,
-    #[error("Comma delimiter not found")]
-    NoCommaDelimiter,
     #[error("Closing double quote delimiter not found")]
     NoQuoteDelimiter,
     #[error("Naming restriction was not met")]
     NameRestriction,
-    #[error("Failed to parse key")]
-    KeyNotParsed,
     #[error("Failed to parse Integer value")]
     IntegerNotParsed,
     #[error("Failed to parse UInteger value")]
@@ -58,26 +63,38 @@ pub enum InfluxLineError {
     BooleanNotParsed,
     #[error("Failed to parse timestamp")]
     TimestampNotParsed,
+    #[error("Timestamp not constructed: DateTime out of range")]
+    DateTimeOutOfRange,
 }
 
 impl InfluxLine {
+    /// Creates a Line from all of its components.
     pub fn full<DT>(
         measurement: MeasurementName,
         tags: impl IntoIterator<Item = (KeyName, KeyName)>,
         fields: impl IntoIterator<Item = (KeyName, InfluxValue)>,
         timestamp: Option<DT>,
-    ) -> Self
+    ) -> Result<Self, InfluxLineError>
     where
         DT: Into<Timestamp>,
     {
-        Self {
+        let actual_fields: KeyValueStorage<InfluxValue> = fields.into_iter().collect();
+        if actual_fields.is_empty() {
+            return Err(InfluxLineError::NoFields);
+        }
+
+        Ok(Self {
             measurement,
             tags: tags.into_iter().collect(),
-            fields: fields.into_iter().collect(),
+            fields: actual_fields,
             timestamp: timestamp.map(|ts| ts.into()),
-        }
+        })
     }
 
+    /// Creates a minimal allowed Line that may later be filled with more data.
+    /// Works with checked and verified values only.
+    ///
+    /// Has a fallible counterpart: [`Self::try_new`].
     pub fn new<V>(measurement: MeasurementName, field: KeyName, value: V) -> Self
     where
         V: Into<InfluxValue>,
@@ -91,25 +108,25 @@ impl InfluxLine {
         }
     }
 
+    /// Creates a minimal allowed Line that may later be filled with more data.
+    /// Does type conversions by itself and reports errors if any.
+    ///
+    /// Behaves the same as its infallible counterpart: [`Self::new`].
     pub fn try_new<M, K, V>(measurement: M, field: K, value: V) -> Result<Self, InfluxLineError>
     where
         M: TryInto<MeasurementName, Error = InfluxLineError>,
         K: TryInto<KeyName, Error = InfluxLineError>,
         V: Into<InfluxValue>,
     {
-        let fields = [(field.try_into()?, value.into())].into_iter().collect();
-        Ok(Self {
-            measurement: measurement.try_into()?,
-            tags: KeyValueStorage::new(),
-            fields,
-            timestamp: None,
-        })
+        Ok(Self::new(measurement.try_into()?, field.try_into()?, value))
     }
 
+    /// Returns a measurement name.
     pub fn measurement(&self) -> &MeasurementName {
         &self.measurement
     }
 
+    /// Returns a tag value given the tag key.
     pub fn tag<S>(&self, name: S) -> Option<&KeyName>
     where
         S: AsRef<str>,
@@ -117,6 +134,12 @@ impl InfluxLine {
         self.tags.get(name)
     }
 
+    /// Returns an iterator over tag key-value pairs.
+    pub fn tags(&self) -> impl Iterator<Item = (&KeyName, &KeyName)> {
+        self.tags.iter()
+    }
+
+    /// Returns a field value given the field key.
     pub fn field<S>(&self, name: S) -> Option<&InfluxValue>
     where
         S: AsRef<str>,
@@ -124,23 +147,39 @@ impl InfluxLine {
         self.fields.get(name)
     }
 
-    pub fn timestamp(&self) -> Option<DateTime<Utc>> {
-        self.timestamp.map(|ts| ts.into())
+    /// Returns an iterator over field key-value pairs.
+    pub fn fields(&self) -> impl Iterator<Item = (&KeyName, &InfluxValue)> {
+        self.fields.iter()
     }
 
+    /// Returns the timestamp value.
+    pub fn timestamp(&self) -> Option<Timestamp> {
+        self.timestamp
+    }
+
+    /// Adds a timestamp to the line, overriding the previous value.
+    ///
+    /// Expects a dedicated [`Timestamp`] type.
+    ///
+    /// Has a fallible counterpart: [`Self::try_with_tag`].
+    /// That one might be more convenient when working with [`DateTime`].
+    ///
     /// # Examples
     ///
     /// ```rust
-    /// use chrono::Utc;
+    /// use chrono::{DateTime, Utc};
     /// use influx_line::*;
     ///
-    /// let some_time = Utc::now();
+    /// let timestamp = Timestamp::from(1704069900000000000 as i64);
+    /// let datetime: DateTime<Utc> = timestamp.into();
+    ///
     /// let measurement = MeasurementName::new("human").unwrap();
     /// let field = KeyName::new("age").unwrap();
     /// let line = InfluxLine::new(measurement, field, 15)
-    ///     .with_timestamp(some_time);
+    ///     .with_timestamp(timestamp);
     ///
-    /// assert_eq!(some_time, line.timestamp().unwrap());
+    /// assert_eq!(timestamp, line.timestamp().unwrap());
+    /// assert_eq!(datetime, line.timestamp().unwrap().into());
     /// ```
     pub fn with_timestamp<T>(mut self, timestamp: T) -> Self
     where
@@ -150,6 +189,42 @@ impl InfluxLine {
         self
     }
 
+    /// A nice way to add a timestamp from [`DateTime`].
+    ///
+    /// This method is fallible because sometimes
+    /// [`DateTime`] may be out of range and return `None` nanoseconds.
+    ///
+    /// Behaves the same as its infallible counterpart: [`Self::with_timestamp`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use chrono::{DateTime, Utc};
+    /// use influx_line::*;
+    ///
+    /// let time = Utc::now();
+    /// let line = InfluxLine::try_new("human", "age", 15)
+    ///     .and_then(|line| line.try_with_timestamp(time))
+    ///     .unwrap();
+    ///
+    /// assert_eq!(time, line.timestamp().unwrap().into());
+    /// ```
+    pub fn try_with_timestamp<T>(mut self, timestamp: T) -> Result<Self, InfluxLineError>
+    where
+        T: TryInto<Timestamp, Error = InfluxLineError>,
+    {
+        self.timestamp.replace(timestamp.try_into()?);
+        Ok(self)
+    }
+
+    /// Adds a tag to the Line.
+    /// Overrides the existing tag, but does not place it in the end.
+    ///
+    /// Works with checked and verified values only.
+    ///
+    /// Has a fallible counterpart: [`Self::try_with_tag`].
+    /// That one might be more convenient sometimes.
+    ///
     /// # Examples
     ///
     /// ## No tags yet
@@ -157,9 +232,7 @@ impl InfluxLine {
     /// ```rust
     /// use influx_line::*;
     ///
-    /// let measurement = MeasurementName::new("human").unwrap();
-    /// let field = KeyName::new("age").unwrap();
-    /// let line = InfluxLine::new(measurement, field, 15);
+    /// let line = InfluxLine::try_new("human", "age", 15).unwrap();
     ///
     /// assert_eq!(line.tag("there are no tags yet, buddy"), None);
     /// ```
@@ -185,6 +258,26 @@ impl InfluxLine {
         self
     }
 
+    /// A convenience method for adding tags from raw unchecked types.
+    /// Attempts fallible conversions by itself and reports errors if any.
+    ///
+    /// Other than that, works the same as its infallible counterpart: [`Self::with_tag`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use influx_line::*;
+    ///
+    /// let line = InfluxLine::try_new("human", "age", 15)
+    ///     .and_then(|line| line.try_with_tag("club", "art"))
+    ///     .and_then(|line| line.try_with_tag("location", "siberia"))
+    ///     .and_then(|line| line.try_with_tag("club", "sports"))
+    ///     .unwrap();
+    ///
+    /// assert_eq!(line.tag("location").unwrap().as_ref(), "siberia");
+    /// assert_eq!(line.tag("club").unwrap().as_ref(), "sports");
+    /// assert_eq!(line.tag("not added yet lol"), None);
+    /// ```
     pub fn try_with_tag<K, V>(mut self, tag: K, value: V) -> Result<Self, InfluxLineError>
     where
         K: TryInto<KeyName, Error = InfluxLineError>,
@@ -194,22 +287,15 @@ impl InfluxLine {
         Ok(self)
     }
 
+    /// Adds a field to the Line.
+    /// Overrides the existing field, but does not place it in the end.
+    ///
+    /// Works with checked and verified values only.
+    ///
+    /// Has a fallible counterpart: [`Self::try_with_field`].
+    /// That one might be more convenient sometimes.
+    ///
     /// # Examples
-    ///
-    /// ## At least one field is mandatory
-    ///
-    /// ```rust
-    /// use influx_line::*;
-    ///
-    /// let measurement = MeasurementName::new("human").unwrap();
-    /// let field = KeyName::new("age").unwrap();
-    /// let line = InfluxLine::new(measurement, field, 15);
-    ///
-    /// assert_eq!(line.field("height"), None);
-    /// assert_eq!(line.field("age").cloned().unwrap(), 15.into());
-    /// ```
-    ///
-    /// ## Adding and overriding fields
     ///
     /// ```rust
     /// use influx_line::*;
@@ -222,7 +308,7 @@ impl InfluxLine {
     ///     .with_field(KeyName::new("is_epic").unwrap(), true)
     ///     .with_field(KeyName::new("name").unwrap(), "armstrong");
     ///
-    /// assert_eq!(line.field("height").cloned().unwrap(), 1.82.into() );
+    /// assert_eq!(line.field("height").cloned().unwrap(), 1.82.into());
     /// assert_eq!(line.field("age").cloned().unwrap(), 55.into());
     /// assert_eq!(line.field("is_epic").cloned().unwrap(), true.into());
     /// assert_eq!(line.field("name").cloned().unwrap(), "armstrong".into());
@@ -236,6 +322,29 @@ impl InfluxLine {
         self
     }
 
+    /// A convenience method for adding fields from raw unchecked types.
+    /// Attempts fallible conversions by itself and reports errors if any.
+    ///
+    /// Other than that, works the same as its infallible counterpart: [`Self::with_field`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use influx_line::*;
+    ///
+    /// let line = InfluxLine::try_new("human", "age", 15)
+    ///     .and_then(|line| line.try_with_field("height", 1.82))
+    ///     .and_then(|line| line.try_with_field("age", 55))
+    ///     .and_then(|line| line.try_with_field("is_epic", true))
+    ///     .and_then(|line| line.try_with_field("name", "armstrong"))
+    ///     .unwrap();
+    ///
+    /// assert_eq!(line.field("height").cloned().unwrap(), 1.82.into());
+    /// assert_eq!(line.field("age").cloned().unwrap(), 55.into());
+    /// assert_eq!(line.field("is_epic").cloned().unwrap(), true.into());
+    /// assert_eq!(line.field("name").cloned().unwrap(), "armstrong".into());
+    /// assert_eq!(line.field("non-existent"), None);
+    /// ```
     pub fn try_with_field<K, V>(mut self, field: K, value: V) -> Result<Self, InfluxLineError>
     where
         K: TryInto<KeyName, Error = InfluxLineError>,
