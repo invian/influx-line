@@ -381,6 +381,17 @@ mod tests {
             .map(|l| l.with_timestamp(Timestamp::from(1704067200000000000 as i64)))
             .unwrap()
     )]
+    #[case::full(
+        "human,language=ru,location=siberia age=25u,is\\ epic=true,balance=-15.57,name=\"Egorka\" 1704067200000000000\n",
+        InfluxLine::try_new("human", "age", 25 as u32)
+            .and_then(|l| l.try_with_field("is epic", true))
+            .and_then(|l| l.try_with_field("balance", -15.57))
+            .and_then(|l| l.try_with_field("name", "Egorka"))
+            .and_then(|l| l.try_with_tag("language", "ru"))
+            .and_then(|l| l.try_with_tag("location", "siberia"))
+            .map(|l| l.with_timestamp(Timestamp::from(1704067200000000000 as i64)))
+            .unwrap()
+    )]
     fn successful_line_parsing(#[case] input: &str, #[case] expected_line: InfluxLine) {
         let actual_line = InfluxLine::from_str(input).expect("Must parse here");
 
