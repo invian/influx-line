@@ -366,6 +366,10 @@ mod tests {
         "measurement field1=228u",
         InfluxLine::try_new("measurement", "field1", 228 as u32).unwrap()
     )]
+    #[case::minimal_with_newline(
+        "measurement field1=228u\n",
+        InfluxLine::try_new("measurement", "field1", 228 as u32).unwrap()
+    )]
     #[case::full(
         "human,language=ru,location=siberia age=25u,is\\ epic=true,balance=-15.57,name=\"Egorka\" 1704067200000000000",
         InfluxLine::try_new("human", "age", 25 as u32)
