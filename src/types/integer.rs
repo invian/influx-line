@@ -2,6 +2,15 @@ use std::str::FromStr;
 
 use crate::line::InfluxLineError;
 
+/// Represents an Integer value with custom format.
+///
+/// Specifically, in Line Protocol, Integer values must end with `i` as follows
+///
+/// - `128i`
+/// - `0i`
+/// - `-99999i`
+///
+/// Otherwise, the value will be treated as Float.
 #[derive(
     Debug,
     Clone,
@@ -18,6 +27,14 @@ use crate::line::InfluxLineError;
 #[display(fmt = "{}i", _0)]
 pub struct InfluxInteger(i64);
 
+/// Represents an Unsigned Integer value with custom format.
+///
+/// Specifically, in Line Protocol, Unsigned Integer values must end with `u` as follows
+///
+/// - `128u`
+/// - `0u`
+///
+/// Otherwise, the value will be treated as Float.
 #[derive(
     Debug,
     Clone,

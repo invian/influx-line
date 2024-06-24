@@ -1,5 +1,7 @@
 use crate::line::InfluxLineError;
 
+/// Consumes a string char-by-char and handles all escape symbols,
+/// returning a raw and unescaped string.
 #[derive(Debug, Clone)]
 pub(super) struct LinearParser<'a> {
     buffer: Vec<char>,

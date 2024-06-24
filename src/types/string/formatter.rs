@@ -1,3 +1,4 @@
+/// Processes a string char-by-char and escapes all special symbols.
 #[derive(Debug)]
 pub(super) struct LinearFormatter<'a> {
     special_characters: &'a [char],

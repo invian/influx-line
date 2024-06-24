@@ -5,6 +5,17 @@ use crate::{line::InfluxLineError, types::string::formatter::LinearFormatter};
 
 use super::parser::{LinearParser, StrayEscapes};
 
+/// Represents a String Field value in Line Protocol.
+///
+/// String values have the following limitations:
+///
+/// - They must be quoted: `field="String"`
+/// - Special characters (backslash and double quote) must be escaped:
+///   `"Special \" characters \\ escaped"`
+///
+/// Working with Quoted Strings does not require any special magic.
+/// [`std::str::FromStr`] and [`std::fmt::Display`] trait implementations
+/// parse and format the string automatically, handling escape symbols and double quotes.
 #[derive(
     Debug,
     Clone,
@@ -23,6 +34,19 @@ impl QuotedString {
     const SPECIAL_CHARACTERS: [char; 2] = ['"', '\\'];
     const ESCAPE_CHARACTER: char = '\\';
 
+    /// Creates a Quoted String from a raw value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::str::FromStr;
+    /// use influx_line::*;
+    ///
+    /// let manual = QuotedString::new("no escape");
+    /// let parsed = QuotedString::from_str("\"no escape\"").unwrap();
+    ///
+    /// assert_eq!(manual, parsed);
+    /// ```
     pub fn new<S>(value: S) -> Self
     where
         S: Into<String>,

@@ -1,7 +1,7 @@
 use crate::KeyName;
 
 /// Small HashMap-like linear storage intended for small collections
-/// where hashing overhead would be slightly annoying.
+/// where hashing overhead might be slightly annoying.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct KeyValueStorage<V> {
     storage: Vec<KeyValuePair<V>>,

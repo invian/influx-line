@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::line::InfluxLineError;
 
 /// Represents a Boolean value
-/// with the following representations in Line Protocol
+/// with the following representations in Line Protocol.
 ///
 /// Accepted Syntax for True value: `t`, `T`, `true`, `True`, or `TRUE`
 ///
