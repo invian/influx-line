@@ -24,7 +24,7 @@ impl<V> KeyValueStorage<V> {
         self.storage.is_empty()
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'a KeyName, &'a V)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&KeyName, &V)> {
         self.storage.iter().map(|pair| (&pair.key, &pair.value))
     }
 
