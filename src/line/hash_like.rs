@@ -20,6 +20,10 @@ impl<V> KeyValueStorage<V> {
         }
     }
 
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'a KeyName, &'a V)> {
+        self.storage.iter().map(|pair| (&pair.key, &pair.value))
+    }
+
     pub fn add(&mut self, pair: KeyValuePair<V>) -> bool {
         if let Some(existing_pair) = self.storage.iter_mut().find(|item| item.key == pair.key) {
             existing_pair.value = pair.value;

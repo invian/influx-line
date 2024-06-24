@@ -1,13 +1,13 @@
 mod hash_like;
 mod parsing;
 
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use chrono::{DateTime, Utc};
 use hash_like::KeyValueStorage;
 use parsing::LinearLineParser;
 
-use crate::{InfluxValue, KeyName, MeasurementName};
+use crate::{InfluxValue, KeyName, MeasurementName, Timestamp};
 
 /// Implements InfluxDB Line Protocol V2.
 ///
@@ -21,7 +21,7 @@ pub struct InfluxLine {
     /// The original name `Field Set` is not adapted for simplicity.
     fields: KeyValueStorage<InfluxValue>,
     /// [`DateTime`] sounds more readable for a timestamp.
-    timestamp: Option<DateTime<Utc>>,
+    timestamp: Option<Timestamp>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -68,7 +68,7 @@ impl InfluxLine {
         timestamp: Option<DT>,
     ) -> Self
     where
-        DT: Into<DateTime<Utc>>,
+        DT: Into<Timestamp>,
     {
         Self {
             measurement,
@@ -125,7 +125,7 @@ impl InfluxLine {
     }
 
     pub fn timestamp(&self) -> Option<DateTime<Utc>> {
-        self.timestamp
+        self.timestamp.map(|ts| ts.into())
     }
 
     /// # Examples
@@ -144,7 +144,7 @@ impl InfluxLine {
     /// ```
     pub fn with_timestamp<T>(mut self, timestamp: T) -> Self
     where
-        T: Into<DateTime<Utc>>,
+        T: Into<Timestamp>,
     {
         self.timestamp.replace(timestamp.into());
         self
@@ -255,6 +255,30 @@ impl FromStr for InfluxLine {
     }
 }
 
+impl Display for InfluxLine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.measurement)?;
+
+        for (key, value) in self.tags.iter() {
+            write!(f, ",{}={}", key, value)?;
+        }
+
+        for (index, (key, value)) in self.fields.iter().enumerate() {
+            if index != 0 {
+                write!(f, ",{}={}", key, value)?;
+            } else {
+                write!(f, " {}={}", key, value)?;
+            }
+        }
+
+        if let Some(timestamp) = self.timestamp {
+            write!(f, " {}", timestamp)?;
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -292,5 +316,27 @@ mod tests {
     #[case::bad_timestamp("measurement field1=1.00 timestamp_here")]
     fn line_parsing_error(#[case] input: &str) {
         let _parse_error = InfluxLine::from_str(input).expect_err("Must fail here");
+    }
+
+    #[rstest::rstest]
+    #[case::minimal(
+        "measurement field1=228u",
+        InfluxLine::try_new("measurement", "field1", 228 as u32).unwrap()
+    )]
+    #[case::full(
+        "human,language=ru,location=siberia age=25u,is\\ epic=true,balance=-15.57,name=\"Egorka\" 1704067200000000000",
+        InfluxLine::try_new("human", "age", 25 as u32)
+            .and_then(|l| l.try_with_field("is epic", true))
+            .and_then(|l| l.try_with_field("balance", -15.57))
+            .and_then(|l| l.try_with_field("name", "Egorka"))
+            .and_then(|l| l.try_with_tag("language", "ru"))
+            .and_then(|l| l.try_with_tag("location", "siberia"))
+            .map(|l| l.with_timestamp(Timestamp::from(1704067200000000000 as i64)))
+            .unwrap()
+    )]
+    fn display_line(#[case] expected_str: &str, #[case] line: InfluxLine) {
+        let actual_str = line.to_string();
+
+        assert_eq!(expected_str, actual_str);
     }
 }
