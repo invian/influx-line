@@ -1,4 +1,4 @@
-use crate::line::InfluxLineError;
+use crate::InfluxLineError;
 
 use super::{exclusive_split_at, Escaped};
 

@@ -1,6 +1,8 @@
+pub(crate) mod error;
 pub(crate) mod line;
 pub(crate) mod types;
 
+pub use crate::error::InfluxLineError;
 pub use crate::line::InfluxLine;
 pub use crate::types::boolean::Boolean;
 pub use crate::types::integer::{InfluxInteger, InfluxUInteger};

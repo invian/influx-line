@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::line::InfluxLineError;
+use crate::InfluxLineError;
 
 /// Represents a Boolean value
 /// with the following representations in Line Protocol.

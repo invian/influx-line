@@ -11,7 +11,7 @@ use tag::{TagParser, TagParserTail};
 
 use crate::{InfluxLine, InfluxValue, KeyName, MeasurementName, Timestamp};
 
-use super::InfluxLineError;
+use crate::InfluxLineError;
 
 /// Since the core lib's `split_at` is inclusive,
 /// i.e., it keeps the delimiter at `index` in the second slice,

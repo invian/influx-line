@@ -1,4 +1,4 @@
-use crate::line::InfluxLineError;
+use crate::InfluxLineError;
 
 /// Consumes a string char-by-char and handles all escape symbols,
 /// returning a raw and unescaped string.

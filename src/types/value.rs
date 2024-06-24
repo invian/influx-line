@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{line::InfluxLineError, Boolean, InfluxInteger, InfluxUInteger, QuotedString};
+use crate::{Boolean, InfluxInteger, InfluxLineError, InfluxUInteger, QuotedString};
 
 #[derive(Debug, Clone, PartialEq, derive_more::From, derive_more::Display)]
 pub enum InfluxValue {

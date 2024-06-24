@@ -1,7 +1,8 @@
 use std::fmt::Display;
 use std::str::FromStr;
 
-use crate::{line::InfluxLineError, types::string::formatter::LinearFormatter};
+use crate::types::string::formatter::LinearFormatter;
+use crate::InfluxLineError;
 
 use super::parser::{LinearParser, StrayEscapes};
 

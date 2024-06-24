@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::line::InfluxLineError;
+use crate::InfluxLineError;
 
 /// Represents an Integer value with custom format.
 ///

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 
-use crate::line::InfluxLineError;
+use crate::InfluxLineError;
 
 /// Represents a Timestamp (in nanoseconds) at the end of the Line Protocol.
 #[derive(
