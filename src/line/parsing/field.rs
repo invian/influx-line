@@ -151,7 +151,7 @@ impl StringValueParser {
             }
             (ParserState::StringRightQuote, _, ',') => Ok(Some(Transition::ToNextField)),
             (ParserState::StringRightQuote, _, ' ') => Ok(Some(Transition::ToTimestamp)),
-            (ParserState::StringRightQuote, _, _) => Err(InfluxLineError::Failed),
+            (ParserState::StringRightQuote, _, _) => Err(InfluxLineError::SymbolsAfterClosedString),
         }
     }
 }

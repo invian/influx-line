@@ -18,6 +18,8 @@ pub enum InfluxLineError {
     NoWhitespaceDelimiter,
     #[error("Closing double quote delimiter not found")]
     NoQuoteDelimiter,
+    #[error("Unexpected symbols after a closing double quote delimiter")]
+    SymbolsAfterClosedString,
     #[error("Naming restriction was not met")]
     NameRestriction,
     #[error("Failed to parse Integer value")]
@@ -28,6 +30,8 @@ pub enum InfluxLineError {
     BooleanNotParsed,
     #[error("Failed to parse timestamp")]
     TimestampNotParsed,
+    #[error("Failed to parse field value as any of the expected types")]
+    BadValue,
     #[error("Timestamp not constructed: DateTime out of range")]
     DateTimeOutOfRange,
 }

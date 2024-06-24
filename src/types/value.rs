@@ -47,7 +47,7 @@ impl FromStr for InfluxValue {
             return Ok(quoted_string.into());
         }
 
-        Err(InfluxLineError::Failed)
+        Err(InfluxLineError::BadValue)
     }
 }
 
