@@ -27,6 +27,17 @@ impl From<Timestamp> for DateTime<Utc> {
     }
 }
 
+impl TryFrom<DateTime<Utc>> for Timestamp {
+    type Error = InfluxLineError;
+
+    fn try_from(value: DateTime<Utc>) -> Result<Self, Self::Error> {
+        value
+            .timestamp_nanos_opt()
+            .map(Timestamp::from)
+            .ok_or(InfluxLineError::DateTimeOutOfRange)
+    }
+}
+
 impl FromStr for Timestamp {
     type Err = InfluxLineError;
 
