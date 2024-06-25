@@ -36,4 +36,6 @@ pub enum InfluxLineError {
     DateTimeOutOfRange,
     #[error("Newline at the end of line is followed by more characters")]
     CharactersAfterLineEnd,
+    #[error("Failed to convert value to a specified type")]
+    TypeConversion,
 }

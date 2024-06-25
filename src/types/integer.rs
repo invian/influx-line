@@ -21,6 +21,7 @@ use crate::InfluxLineError;
     Ord,
     Hash,
     derive_more::From,
+    derive_more::Into,
     derive_more::Display,
 )]
 #[from(types(i8, i16, i32))]
@@ -87,6 +88,72 @@ impl FromStr for InfluxUInteger {
             .map_err(|_| InfluxLineError::UIntegerNotParsed)?;
 
         Ok(Self(uinteger))
+    }
+}
+
+impl TryFrom<InfluxInteger> for i32 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxInteger) -> Result<Self, Self::Error> {
+        value
+            .0
+            .try_into()
+            .map_err(|_| InfluxLineError::TypeConversion)
+    }
+}
+
+impl TryFrom<InfluxInteger> for i16 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxInteger) -> Result<Self, Self::Error> {
+        value
+            .0
+            .try_into()
+            .map_err(|_| InfluxLineError::TypeConversion)
+    }
+}
+
+impl TryFrom<InfluxInteger> for i8 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxInteger) -> Result<Self, Self::Error> {
+        value
+            .0
+            .try_into()
+            .map_err(|_| InfluxLineError::TypeConversion)
+    }
+}
+
+impl TryFrom<InfluxUInteger> for u32 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxUInteger) -> Result<Self, Self::Error> {
+        value
+            .0
+            .try_into()
+            .map_err(|_| InfluxLineError::TypeConversion)
+    }
+}
+
+impl TryFrom<InfluxUInteger> for u16 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxUInteger) -> Result<Self, Self::Error> {
+        value
+            .0
+            .try_into()
+            .map_err(|_| InfluxLineError::TypeConversion)
+    }
+}
+
+impl TryFrom<InfluxUInteger> for u8 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxUInteger) -> Result<Self, Self::Error> {
+        value
+            .0
+            .try_into()
+            .map_err(|_| InfluxLineError::TypeConversion)
     }
 }
 

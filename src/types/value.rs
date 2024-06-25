@@ -2,7 +2,9 @@ use std::str::FromStr;
 
 use crate::{Boolean, InfluxInteger, InfluxLineError, InfluxUInteger, QuotedString};
 
-#[derive(Debug, Clone, PartialEq, derive_more::From, derive_more::Display)]
+#[derive(
+    Debug, Clone, PartialEq, derive_more::From, derive_more::TryInto, derive_more::Display,
+)]
 pub enum InfluxValue {
     #[display(fmt = "{:?}", _0)]
     #[from(types(f32))]
@@ -48,6 +50,127 @@ impl FromStr for InfluxValue {
         }
 
         Err(InfluxLineError::BadValue)
+    }
+}
+
+impl TryFrom<InfluxValue> for f32 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::Float(inner) => Ok(inner as f32),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
+    }
+}
+
+impl TryFrom<InfluxValue> for i8 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::Integer(inner) => inner.try_into(),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
+    }
+}
+
+impl TryFrom<InfluxValue> for i16 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::Integer(inner) => inner.try_into(),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
+    }
+}
+
+impl TryFrom<InfluxValue> for i32 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::Integer(inner) => inner.try_into(),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
+    }
+}
+
+impl TryFrom<InfluxValue> for i64 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::Integer(inner) => Ok(inner.into()),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
+    }
+}
+
+impl TryFrom<InfluxValue> for u8 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::UInteger(inner) => inner.try_into(),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
+    }
+}
+
+impl TryFrom<InfluxValue> for u16 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::UInteger(inner) => inner.try_into(),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
+    }
+}
+
+impl TryFrom<InfluxValue> for u32 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::UInteger(inner) => inner.try_into(),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
+    }
+}
+
+impl TryFrom<InfluxValue> for u64 {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::UInteger(inner) => Ok(inner.into()),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
+    }
+}
+
+impl TryFrom<InfluxValue> for bool {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::Boolean(inner) => Ok(inner.into()),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
+    }
+}
+
+impl TryFrom<InfluxValue> for String {
+    type Error = InfluxLineError;
+
+    fn try_from(value: InfluxValue) -> Result<Self, Self::Error> {
+        match value {
+            InfluxValue::String(inner) => Ok(inner.into()),
+            _ => Err(InfluxLineError::TypeConversion),
+        }
     }
 }
 
