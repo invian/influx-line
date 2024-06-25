@@ -1,7 +1,7 @@
 mod hash_like;
 mod parsing;
 
-use std::fmt::Display;
+use std::fmt::{Display, Write};
 use std::str::FromStr;
 
 use hash_like::KeyValueStorage;
@@ -32,6 +32,7 @@ pub struct InfluxLine {
     /// The original name `Field Set` is not adapted for simplicity.
     fields: KeyValueStorage<InfluxValue>,
     timestamp: Option<Timestamp>,
+    has_newline: bool,
 }
 
 impl InfluxLine {
@@ -55,6 +56,7 @@ impl InfluxLine {
             tags: tags.into_iter().collect(),
             fields: actual_fields,
             timestamp: timestamp.map(|ts| ts.into()),
+            has_newline: false,
         })
     }
 
@@ -72,6 +74,7 @@ impl InfluxLine {
             tags: KeyValueStorage::new(),
             fields,
             timestamp: None,
+            has_newline: false,
         }
     }
 
@@ -122,6 +125,25 @@ impl InfluxLine {
     /// Returns the timestamp value.
     pub fn timestamp(&self) -> Option<Timestamp> {
         self.timestamp
+    }
+
+    /// By default, the Line formats to string without a newline character at the end.
+    /// This method allows to set formatting options to enable the newline here.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::fmt::Display;
+    /// use influx_line::*;
+    ///
+    /// let line = InfluxLine::try_new("human", "age", 15).unwrap();
+    ///
+    /// assert_eq!("human age=15i", line.to_string());
+    /// assert_eq!("human age=15i\n", line.add_newline().to_string())
+    /// ```
+    pub fn add_newline(mut self) -> Self {
+        self.has_newline = true;
+        self
     }
 
     /// Adds a timestamp to the line, overriding the previous value.
@@ -351,6 +373,10 @@ impl Display for InfluxLine {
             write!(f, " {}", timestamp)?;
         }
 
+        if self.has_newline {
+            f.write_char('\n')?;
+        }
+
         Ok(())
     }
 }
@@ -414,6 +440,13 @@ mod tests {
         "measurement field1=228u",
         InfluxLine::try_new("measurement", "field1", 228 as u32).unwrap()
     )]
+    #[rstest::rstest]
+    #[case::minimal_with_newline(
+        "measurement field1=228u\n",
+        InfluxLine::try_new("measurement", "field1", 228 as u32)
+            .map(|l| l.add_newline())
+            .unwrap()
+    )]
     #[case::full(
         "human,language=ru,location=siberia age=25u,is\\ epic=true,balance=-15.57,name=\"Egorka\" 1704067200000000000",
         InfluxLine::try_new("human", "age", 25 as u32)
@@ -422,6 +455,18 @@ mod tests {
             .and_then(|l| l.try_with_field("name", "Egorka"))
             .and_then(|l| l.try_with_tag("language", "ru"))
             .and_then(|l| l.try_with_tag("location", "siberia"))
+            .map(|l| l.with_timestamp(Timestamp::from(1704067200000000000 as i64)))
+            .unwrap()
+    )]
+    #[case::full_with_newline(
+        "human,language=ru,location=siberia age=25u,is\\ epic=true,balance=-15.57,name=\"Egorka\" 1704067200000000000\n",
+        InfluxLine::try_new("human", "age", 25 as u32)
+            .and_then(|l| l.try_with_field("is epic", true))
+            .and_then(|l| l.try_with_field("balance", -15.57))
+            .and_then(|l| l.try_with_field("name", "Egorka"))
+            .and_then(|l| l.try_with_tag("language", "ru"))
+            .and_then(|l| l.try_with_tag("location", "siberia"))
+            .map(|l| l.add_newline())
             .map(|l| l.with_timestamp(Timestamp::from(1704067200000000000 as i64)))
             .unwrap()
     )]
