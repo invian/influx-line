@@ -3,13 +3,26 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  test:
-    name: cargo-test
+  cargo-fmt:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31
+      - run: |
+          nix develop .#ci --command cargo fmt --all --check
 
+  cargo-clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - run: |
+          nix develop .#ci --command cargo clippy --all-features -- -Dwarnings
+
+  cargo-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
       - run: |
           nix develop .#ci --command cargo test --all-features
