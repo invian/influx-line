@@ -63,7 +63,7 @@ impl FieldValueParser {
 }
 
 impl SimpleValueParser {
-    pub fn process(self, line: &str) -> Result<(&str, FieldParserTail), InfluxLineError> {
+    pub fn process(self, line: &str) -> Result<(&str, FieldParserTail<'_>), InfluxLineError> {
         for (index, character) in line.char_indices() {
             match character {
                 '\\' => return Err(InfluxLineError::UnexpectedEscapeSymbol),
@@ -96,7 +96,7 @@ impl StringValueParser {
         }
     }
 
-    pub fn process(mut self, line: &str) -> Result<(&str, FieldParserTail), InfluxLineError> {
+    pub fn process(mut self, line: &str) -> Result<(&str, FieldParserTail<'_>), InfluxLineError> {
         for (index, character) in line.char_indices() {
             match self.consume_char(character)? {
                 Some(Transition::ToNextField) => {
