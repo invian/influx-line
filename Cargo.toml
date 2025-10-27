@@ -6,9 +6,16 @@ authors = ["Invian"]
 license-file = "LICENSE"
 
 [dependencies]
-derive_more = "0.99"
+derive_more = { version = "2", features = [
+    "from",
+    "into",
+    "try_into",
+    "display",
+    "deref",
+    "index",
+] }
 chrono = { version = "0.4", features = ["serde"] }
-thiserror = "1"
+thiserror = "2"
 
 [dev-dependencies]
 rstest = "0.21"
