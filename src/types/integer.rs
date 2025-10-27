@@ -24,8 +24,8 @@ use crate::InfluxLineError;
     derive_more::Into,
     derive_more::Display,
 )]
-#[from(types(i8, i16, i32))]
-#[display(fmt = "{}i", _0)]
+#[from(i8, i16, i32, i64)]
+#[display("{}i", _0)]
 pub struct InfluxInteger(i64);
 
 /// Represents an Unsigned Integer value with custom format.
@@ -49,8 +49,8 @@ pub struct InfluxInteger(i64);
     derive_more::Into,
     derive_more::Display,
 )]
-#[from(types(u8, u16, u32))]
-#[display(fmt = "{}u", _0)]
+#[from(u8, u16, u32, u64)]
+#[display("{}u", _0)]
 pub struct InfluxUInteger(u64);
 
 impl FromStr for InfluxInteger {
