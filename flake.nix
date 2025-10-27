@@ -23,21 +23,32 @@
         ];
         pkgs = import nixpkgs { inherit system overlays; };
 
-        rust = {
-          dev = pkgs.rust-bin.stable.latest.minimal.override {
-            extensions = [
+        rust =
+          let
+            ci-extensions = [
               "rustfmt"
               "clippy"
-              "rust-analyzer"
-              "rust-src"
             ];
+          in
+          {
+            ci = pkgs.rust-bin.stable.latest.minimal.override {
+              extensions = ci-extensions;
+            };
+            dev = pkgs.rust-bin.stable.latest.minimal.override {
+              extensions = ci-extensions ++ [
+                "rust-analyzer"
+                "rust-src"
+              ];
+            };
           };
-        };
       in
       {
         devShells = {
           default = pkgs.mkShell {
             packages = [ rust.dev ];
+          };
+          ci = pkgs.mkShell {
+            packages = [ rust.ci ];
           };
         };
       }
