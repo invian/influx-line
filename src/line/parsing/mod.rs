@@ -48,7 +48,7 @@ enum Escaped {
 }
 
 impl LinearLineParser {
-    pub fn process(self, line: &str) -> Result<RawLine, InfluxLineError> {
+    pub fn process(self, line: &str) -> Result<RawLine<'_>, InfluxLineError> {
         let (measurement, measurement_tail) = MeasurementParser::new().process(line)?;
 
         let (tags, fields_tail) = match measurement_tail {

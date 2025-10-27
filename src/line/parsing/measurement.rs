@@ -20,7 +20,7 @@ impl MeasurementParser {
         }
     }
 
-    pub fn process(mut self, line: &str) -> Result<(&str, MeasurementTail), InfluxLineError> {
+    pub fn process(mut self, line: &str) -> Result<(&str, MeasurementTail<'_>), InfluxLineError> {
         for (index, character) in line.char_indices() {
             match (self.escaped, character) {
                 (Escaped::No, ',' | ' ') if index == 0 => {
