@@ -12,4 +12,4 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@v9
 
       - run: |
-          nix develop .#ci --command "cargo test --all-features"
+          nix develop .#ci --command cargo test --all-features
