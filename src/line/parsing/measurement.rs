@@ -1,6 +1,6 @@
 use crate::InfluxLineError;
 
-use super::{exclusive_split_at, Escaped};
+use super::{Escaped, exclusive_split_at};
 
 #[derive(Debug)]
 pub struct MeasurementParser {

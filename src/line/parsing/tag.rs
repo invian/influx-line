@@ -1,6 +1,6 @@
 use crate::InfluxLineError;
 
-use super::{exclusive_split_at, key::KeyParser, Escaped, RawKeyValuePair};
+use super::{Escaped, RawKeyValuePair, exclusive_split_at, key::KeyParser};
 
 #[derive(Debug)]
 pub struct TagParser;
