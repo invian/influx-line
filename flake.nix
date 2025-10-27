@@ -31,7 +31,7 @@
             ];
           };
           dev = pkgs.rust-bin.stable.latest.minimal.override {
-            extensions = ci-extensions ++ [
+            extensions = [
               "rustfmt"
               "clippy"
               "rust-analyzer"
