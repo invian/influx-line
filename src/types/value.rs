@@ -6,14 +6,14 @@ use crate::{Boolean, InfluxInteger, InfluxLineError, InfluxUInteger, QuotedStrin
     Debug, Clone, PartialEq, derive_more::From, derive_more::TryInto, derive_more::Display,
 )]
 pub enum InfluxValue {
-    #[display(fmt = "{:?}", _0)]
-    #[from(types(f32))]
+    #[display("{:?}", _0)]
+    #[from(f32, f64)]
     Float(f64),
-    #[from(types(i8, i16, i32, i64))]
+    #[from(i8, i16, i32, i64, InfluxInteger)]
     Integer(InfluxInteger),
-    #[from(types(u8, u16, u32, u64))]
+    #[from(u8, u16, u32, u64, InfluxUInteger)]
     UInteger(InfluxUInteger),
-    #[from(types(bool))]
+    #[from(bool, Boolean)]
     Boolean(Boolean),
     #[from]
     String(QuotedString),

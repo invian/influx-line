@@ -18,7 +18,7 @@ use crate::InfluxLineError;
     derive_more::Into,
     derive_more::Display,
 )]
-#[from(types(u8, u16, u32, i8, i16, i32))]
+#[from(u8, u16, u32, i8, i16, i32, i64)]
 pub struct Timestamp(i64);
 
 impl From<Timestamp> for DateTime<Utc> {
