@@ -4,6 +4,8 @@ version = "1.0.4"
 edition = "2024"
 authors = ["Invian"]
 license-file = "LICENSE"
+repository = "https://github.com/invian/influx-line"
+include = ["/src"]
 
 [dependencies]
 derive_more = { version = "2", features = [
